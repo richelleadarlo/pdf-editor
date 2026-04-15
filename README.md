@@ -17,7 +17,7 @@ This project is a **local-first web application**, meaning PDF data and edit sta
 - Drag and resize elements
 - Undo and redo editing history
 - Multi-page navigation with page-aware placement and duplication
-- Zoom controls
+- Fixed 100% page rendering for stable editor/export alignment
 - Dark mode
 - Automatic saving using IndexedDB
 - Restore previous session on reload
@@ -48,19 +48,29 @@ npm run dev
 4. Open in browser:
 http://localhost:5173
 
+## Deploying To Vercel
+
+This repository is now configured for static Vite deployment on Vercel.
+
+1. Push this repo to GitHub.
+2. In Vercel, import the GitHub repository.
+3. Keep default values (the repository includes `vercel.json`):
+  - Build command: `npm run build`
+  - Output directory: `dist`
+4. Deploy.
+
+After that, every push to your connected branch (for example `main`) will automatically trigger a new Vercel deployment.
+
 ## Project Structure
 
 src/
  ├── components/
- │   ├── PDFViewer.jsx
- │   ├── Toolbar.jsx
- │   ├── TextOverlay.jsx
- │   ├── SignaturePad.jsx
- │
  ├── hooks/
+ ├── lib/
+ ├── routes/
  ├── utils/
- ├── App.jsx
- ├── main.jsx
+ ├── App.tsx
+ ├── main.tsx
 
 ## How Persistence Works
 
