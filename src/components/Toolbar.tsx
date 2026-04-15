@@ -1,26 +1,42 @@
 import { Button } from "@/components/ui/button";
 import {
+  ChevronLeft,
+  ChevronRight,
   Upload,
   Type,
   PenLine,
   Download,
   MousePointer2,
-  ZoomIn,
-  ZoomOut,
+  Moon,
+  Redo2,
+  SunMedium,
+  Undo2,
   Trash2,
+  CopyPlus,
 } from "lucide-react";
+import type { ThemeMode } from "@/hooks/use-theme";
 
 interface Props {
   hasPdf: boolean;
   activeTool: "select" | "text" | "signature" | null;
+  showTextControls: boolean;
   onToolChange: (tool: "select" | "text" | "signature") => void;
   onUpload: () => void;
   onSignature: () => void;
   onDownload: () => void;
   onClear: () => void;
-  zoom: number;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  theme: ThemeMode;
+  onToggleTheme: () => void;
+  currentPage: number;
+  totalPages: number;
+  onPreviousPage: () => void;
+  onNextPage: () => void;
+  canDuplicateSelection: boolean;
+  onDuplicateSelection: () => void;
   // Text controls
   fontSize: number;
   fontFamily: string;
@@ -33,14 +49,24 @@ interface Props {
 export function Toolbar({
   hasPdf,
   activeTool,
+  showTextControls,
   onToolChange,
   onUpload,
   onSignature,
   onDownload,
   onClear,
-  zoom,
-  onZoomIn,
-  onZoomOut,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+  theme,
+  onToggleTheme,
+  currentPage,
+  totalPages,
+  onPreviousPage,
+  onNextPage,
+  canDuplicateSelection,
+  onDuplicateSelection,
   fontSize,
   fontFamily,
   fontColor,
@@ -50,7 +76,6 @@ export function Toolbar({
 }: Props) {
   return (
     <div className="sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-2 shadow-sm">
-      {/* Upload */}
       <Button variant="outline" size="sm" onClick={onUpload}>
         <Upload className="mr-1 h-4 w-4" /> Upload PDF
       </Button>
@@ -59,7 +84,6 @@ export function Toolbar({
         <>
           <div className="mx-1 h-6 w-px bg-border" />
 
-          {/* Select */}
           <Button
             variant={activeTool === "select" ? "toolbarActive" : "ghost"}
             size="sm"
@@ -68,7 +92,6 @@ export function Toolbar({
             <MousePointer2 className="mr-1 h-4 w-4" /> Select
           </Button>
 
-          {/* Text */}
           <Button
             variant={activeTool === "text" ? "toolbarActive" : "ghost"}
             size="sm"
@@ -77,16 +100,28 @@ export function Toolbar({
             <Type className="mr-1 h-4 w-4" /> Text
           </Button>
 
-          {/* Signature */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onSignature}
-          >
+          <Button variant="ghost" size="sm" onClick={onSignature}>
             <PenLine className="mr-1 h-4 w-4" /> Signature
           </Button>
 
-          {activeTool === "text" && (
+          <Button variant="ghost" size="sm" onClick={onUndo} disabled={!canUndo}>
+            <Undo2 className="mr-1 h-4 w-4" /> Undo
+          </Button>
+
+          <Button variant="ghost" size="sm" onClick={onRedo} disabled={!canRedo}>
+            <Redo2 className="mr-1 h-4 w-4" /> Redo
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDuplicateSelection}
+            disabled={!canDuplicateSelection}
+          >
+            <CopyPlus className="mr-1 h-4 w-4" /> Duplicate to page {currentPage}
+          </Button>
+
+          {showTextControls && (
             <>
               <div className="mx-1 h-6 w-px bg-border" />
               <select
@@ -117,18 +152,39 @@ export function Toolbar({
 
           <div className="mx-1 h-6 w-px bg-border" />
 
-          {/* Zoom */}
-          <Button variant="ghost" size="icon" onClick={onZoomOut} disabled={zoom <= 0.5}>
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <span className="text-xs text-muted-foreground">{Math.round(zoom * 100)}%</span>
-          <Button variant="ghost" size="icon" onClick={onZoomIn} disabled={zoom >= 3}>
-            <ZoomIn className="h-4 w-4" />
+          <div className="flex items-center gap-1 rounded-md border border-border/70 bg-background/80 px-1 py-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onPreviousPage}
+              disabled={currentPage <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="min-w-20 text-center text-xs text-muted-foreground">
+              Page {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onNextPage}
+              disabled={currentPage >= totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Button variant="ghost" size="sm" onClick={onToggleTheme}>
+            {theme === "dark" ? (
+              <SunMedium className="mr-1 h-4 w-4" />
+            ) : (
+              <Moon className="mr-1 h-4 w-4" />
+            )}
+            {theme === "dark" ? "Light" : "Dark"}
           </Button>
 
           <div className="flex-1" />
 
-          {/* Download */}
           <Button variant="default" size="sm" onClick={onDownload}>
             <Download className="mr-1 h-4 w-4" /> Download
           </Button>

@@ -94,12 +94,7 @@ export function SignatureDialog({ open, onClose, onSave }: Props) {
             </Button>
             <label className="cursor-pointer text-sm text-primary hover:underline">
               Upload image
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
+              <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
             </label>
           </div>
           <div className="flex justify-end gap-2">

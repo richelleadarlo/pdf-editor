@@ -1,6 +1,17 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Toaster } from "@/components/ui/sonner";
 
 import appCss from "../styles.css?url";
+
+const themeInitScript = `(() => {
+  try {
+    const storedTheme = window.localStorage.getItem("pdf-editor-theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const theme = storedTheme === "light" || storedTheme === "dark" ? storedTheme : (prefersDark ? "dark" : "light");
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.style.colorScheme = theme;
+  } catch {}
+})();`;
 
 function NotFoundComponent() {
   return (
@@ -29,14 +40,22 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { name: "theme-color", content: "#0f172a" },
+      { title: "PDF Editor" },
+      {
+        name: "description",
+        content:
+          "Local-first PDF editing with offline support, IndexedDB storage, and installable PWA behavior.",
+      },
+      { name: "author", content: "Richelle Adarlo" },
+      { property: "og:title", content: "PDF Editor" },
+      {
+        property: "og:description",
+        content: "Edit PDFs locally with offline support, undo history, and page-aware controls.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@richelleadarlo" },
     ],
     links: [
       {
@@ -54,10 +73,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <HeadContent />
       </head>
       <body>
         {children}
+        <Toaster richColors closeButton position="bottom-right" />
         <Scripts />
       </body>
     </html>

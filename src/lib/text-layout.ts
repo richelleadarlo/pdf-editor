@@ -1,0 +1,6 @@
+export const TEXT_BOX_HORIZONTAL_PADDING = 6;
+export const TEXT_BOX_VERTICAL_PADDING = 2;
+export const TEXT_BOX_LINE_HEIGHT = 1.2;
+export const TEXT_BOX_MIN_WIDTH = 140;
+export const TEXT_BOX_MIN_RESIZE_WIDTH = 80;
+export const TEXT_BOX_MIN_HEIGHT_MULTIPLIER = 1.8;

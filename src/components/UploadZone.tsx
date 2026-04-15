@@ -25,9 +25,7 @@ export function UploadZone({ onFile }: Props) {
     <div className="flex min-h-[60vh] items-center justify-center px-4">
       <div
         className={`flex w-full max-w-lg cursor-pointer flex-col items-center gap-4 rounded-2xl border-2 border-dashed p-12 transition-colors ${
-          dragOver
-            ? "border-primary bg-primary/5"
-            : "border-border hover:border-primary/50"
+          dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
         }`}
         onDragOver={(e) => {
           e.preventDefault();
@@ -41,12 +39,8 @@ export function UploadZone({ onFile }: Props) {
           <FileUp className="h-8 w-8 text-primary" />
         </div>
         <div className="text-center">
-          <p className="text-lg font-semibold text-foreground">
-            Drop your PDF here
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            or click to browse files
-          </p>
+          <p className="text-lg font-semibold text-foreground">Drop your PDF here</p>
+          <p className="mt-1 text-sm text-muted-foreground">or click to browse files</p>
         </div>
         <input
           ref={inputRef}

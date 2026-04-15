@@ -1,22 +1,51 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { EditItem, TextEdit, SignatureEdit, OriginalTextEdit, DetectedTextItem } from "@/hooks/use-pdf-storage";
+import type { EditItem, DetectedTextItem, EditUpdate } from "@/lib/pdf-types";
 import { EditOverlay } from "./EditOverlay";
 import { DetectedTextOverlay } from "./DetectedTextOverlay";
 
+const FIXED_RENDER_SCALE = 1.5;
+
+type PdfTextItem = {
+  str: string;
+  transform: number[];
+  width?: number;
+  height?: number;
+  fontName?: string;
+};
+
+function isPdfTextItem(item: unknown): item is PdfTextItem {
+  return (
+    typeof item === "object" &&
+    item !== null &&
+    "str" in item &&
+    "transform" in item &&
+    Array.isArray((item as { transform?: unknown }).transform)
+  );
+}
+
 interface Props {
-  pdfBase64: string;
+  pdfBytes: Uint8Array;
   edits: EditItem[];
   activeTool: "select" | "text" | "signature" | null;
   onPageClick: (page: number, x: number, y: number) => void;
-  onUpdateEdit: (id: string, updates: Partial<TextEdit> | Partial<SignatureEdit> | Partial<OriginalTextEdit>) => void;
+  onUpdateEdit: (id: string, updates: EditUpdate) => void;
   onRemoveEdit: (id: string) => void;
   onScalesReady: (scales: Map<number, { scaleX: number; scaleY: number }>) => void;
   onEditOriginalText: (item: DetectedTextItem) => void;
-  zoom: number;
+  onPageCountChange: (pageCount: number) => void;
+  onCurrentPageChange: (page: number) => void;
+  selectedEditId: string | null;
+  onSelectEdit: (id: string | null) => void;
+  editingEditId: string | null;
+  onStartEditing: (id: string) => void;
+  onFinishEditing: (id: string) => void;
+  autoFocusEditId: string | null;
+  navigateToPage: number | null;
+  onNavigationHandled: () => void;
 }
 
 export function PDFViewer({
-  pdfBase64,
+  pdfBytes,
   edits,
   activeTool,
   onPageClick,
@@ -24,9 +53,19 @@ export function PDFViewer({
   onRemoveEdit,
   onScalesReady,
   onEditOriginalText,
-  zoom,
+  onPageCountChange,
+  onCurrentPageChange,
+  selectedEditId,
+  onSelectEdit,
+  editingEditId,
+  onStartEditing,
+  onFinishEditing,
+  autoFocusEditId,
+  navigateToPage,
+  onNavigationHandled,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [pageCanvases, setPageCanvases] = useState<
     { pageNum: number; dataUrl: string; width: number; height: number }[]
   >([]);
@@ -41,30 +80,25 @@ export function PDFViewer({
       const pdfjsLib = await import("pdfjs-dist");
       pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
         "pdfjs-dist/build/pdf.worker.min.mjs",
-        import.meta.url
+        import.meta.url,
       ).toString();
 
-      const raw = pdfBase64.includes(",") ? pdfBase64.split(",")[1] : pdfBase64;
-      const binaryString = atob(raw);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: pdfBytes.slice() }).promise;
       const pages: typeof pageCanvases = [];
       const newScales = new Map<number, { scaleX: number; scaleY: number }>();
       const allDetected: DetectedTextItem[] = [];
       let textIdCounter = 0;
 
+      onPageCountChange(pdf.numPages);
+
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 * zoom });
+        const viewport = page.getViewport({ scale: FIXED_RENDER_SCALE });
         const canvas = document.createElement("canvas");
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const ctx = canvas.getContext("2d")!;
-        await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
+        await page.render({ canvasContext: ctx, viewport }).promise;
 
         const originalViewport = page.getViewport({ scale: 1 });
         const scaleX = viewport.width / originalViewport.width;
@@ -74,13 +108,13 @@ export function PDFViewer({
         // Extract text content with positions
         const textContent = await page.getTextContent();
         for (const item of textContent.items) {
-          if (!("str" in item) || !item.str.trim()) continue;
+          if (!isPdfTextItem(item) || !item.str.trim()) continue;
           const tx = item.transform;
           // tx = [scaleX, skewY, skewX, scaleY, translateX, translateY]
           const pdfFontSize = Math.abs(tx[3]) || 12;
           const pdfX = tx[4];
           const pdfY = tx[5];
-          const pdfWidth = item.width || (item.str.length * pdfFontSize * 0.6);
+          const pdfWidth = item.width || item.str.length * pdfFontSize * 0.6;
           const pdfHeight = item.height || pdfFontSize;
 
           // Convert to canvas coordinates
@@ -98,7 +132,7 @@ export function PDFViewer({
             width: canvasW,
             height: canvasH,
             fontSize: pdfFontSize * scaleY,
-            fontFamily: (item as any).fontName || "Helvetica",
+            fontFamily: item.fontName || "Helvetica",
             page: i,
             pdfX,
             pdfY,
@@ -124,11 +158,52 @@ export function PDFViewer({
       console.error("PDF render error:", err);
     }
     setLoading(false);
-  }, [pdfBase64, zoom, onScalesReady]);
+  }, [onPageCountChange, onScalesReady, pdfBytes]);
 
   useEffect(() => {
     renderPdf();
   }, [renderPdf]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntry = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
+
+        if (!visibleEntry) return;
+
+        const page = Number((visibleEntry.target as HTMLElement).dataset.pageNumber);
+        if (!Number.isNaN(page)) {
+          onCurrentPageChange(page);
+        }
+      },
+      {
+        root: containerRef.current,
+        threshold: [0.35, 0.6, 0.85],
+      },
+    );
+
+    for (const element of pageRefs.current.values()) {
+      observer.observe(element);
+    }
+
+    return () => observer.disconnect();
+  }, [onCurrentPageChange, pageCanvases]);
+
+  useEffect(() => {
+    if (!navigateToPage) return;
+
+    const pageElement = pageRefs.current.get(navigateToPage);
+    if (pageElement) {
+      pageElement.scrollIntoView({ behavior: "smooth", block: "start" });
+      onCurrentPageChange(navigateToPage);
+    }
+
+    onNavigationHandled();
+  }, [navigateToPage, onCurrentPageChange, onNavigationHandled]);
 
   const handlePageClick = (e: React.MouseEvent, pageNum: number) => {
     if (activeTool !== "text") return;
@@ -140,9 +215,7 @@ export function PDFViewer({
 
   // Get IDs of original texts that have been converted to edits
   const editedOriginalIds = new Set(
-    edits
-      .filter((e) => e.type === "original-text")
-      .map((e) => (e as OriginalTextEdit).id)
+    edits.filter((edit) => edit.type === "original-text").map((edit) => edit.id),
   );
 
   if (loading) {
@@ -157,52 +230,69 @@ export function PDFViewer({
   }
 
   return (
-    <div ref={containerRef} className="flex flex-col items-center gap-6 py-6">
-      {pageCanvases.map((pc) => (
-        <div
-          key={pc.pageNum}
-          className="pdf-page-shadow relative rounded-sm bg-card"
-          style={{ width: pc.width, height: pc.height }}
-          onClick={(e) => handlePageClick(e, pc.pageNum)}
-        >
-          <img
-            src={pc.dataUrl}
-            alt={`Page ${pc.pageNum}`}
-            className="block"
+    <div ref={containerRef} className="flex-1 overflow-auto px-4 py-6">
+      <div className="flex flex-col items-center gap-6 pb-12">
+        {pageCanvases.map((pc) => (
+          <div
+            key={pc.pageNum}
+            ref={(element) => {
+              if (element) {
+                pageRefs.current.set(pc.pageNum, element);
+              } else {
+                pageRefs.current.delete(pc.pageNum);
+              }
+            }}
+            data-page-number={pc.pageNum}
+            className={`pdf-page-shadow relative rounded-sm bg-card transition-all ${selectedEditId && edits.some((edit) => edit.id === selectedEditId && edit.page === pc.pageNum) ? "ring-2 ring-primary/50" : ""}`}
             style={{ width: pc.width, height: pc.height }}
-            draggable={false}
-          />
+            onClick={(e) => {
+              handlePageClick(e, pc.pageNum);
+              if (activeTool === "select") {
+                onSelectEdit(null);
+              }
+            }}
+          >
+            <img
+              src={pc.dataUrl}
+              alt={`Page ${pc.pageNum}`}
+              className="block"
+              style={{ width: pc.width, height: pc.height }}
+              draggable={false}
+            />
 
-          {/* Detected original text overlays (only in select mode, and only those not yet being edited) */}
-          {activeTool === "select" &&
-            detectedTexts
-              .filter((dt) => dt.page === pc.pageNum && !editedOriginalIds.has(dt.id))
-              .map((dt) => (
-                <DetectedTextOverlay
-                  key={dt.id}
-                  item={dt}
-                  onEdit={onEditOriginalText}
+            {/* Detected original text overlays (only in select mode, and only those not yet being edited) */}
+            {activeTool === "select" &&
+              detectedTexts
+                .filter((dt) => dt.page === pc.pageNum && !editedOriginalIds.has(dt.id))
+                .map((dt) => (
+                  <DetectedTextOverlay key={dt.id} item={dt} onEdit={onEditOriginalText} />
+                ))}
+
+            {/* User edits */}
+            {edits
+              .filter((e) => e.page === pc.pageNum)
+              .map((edit) => (
+                <EditOverlay
+                  key={edit.id}
+                  edit={edit}
+                  onUpdate={onUpdateEdit}
+                  onRemove={onRemoveEdit}
+                  isSelectMode={activeTool === "select"}
+                  isSelected={selectedEditId === edit.id}
+                  isEditing={editingEditId === edit.id}
+                  autoFocus={autoFocusEditId === edit.id}
+                  onSelect={onSelectEdit}
+                  onStartEditing={onStartEditing}
+                  onFinishEditing={onFinishEditing}
                 />
               ))}
 
-          {/* User edits */}
-          {edits
-            .filter((e) => e.page === pc.pageNum)
-            .map((edit) => (
-              <EditOverlay
-                key={edit.id}
-                edit={edit}
-                onUpdate={onUpdateEdit}
-                onRemove={onRemoveEdit}
-                isSelectMode={activeTool === "select"}
-              />
-            ))}
-
-          <div className="pointer-events-none absolute bottom-2 right-3 text-xs text-muted-foreground/60">
-            {pc.pageNum}
+            <div className="pointer-events-none absolute bottom-2 right-3 text-xs text-muted-foreground/60">
+              {pc.pageNum}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

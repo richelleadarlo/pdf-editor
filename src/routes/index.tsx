@@ -5,8 +5,12 @@ export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "PDF Editor — Edit PDFs in Your Browser" },
-      { name: "description", content: "A local-first PDF editor. Add text, signatures, and export — all in your browser with no uploads." },
+      { title: "PDF Editor - Local First PDF Workspace" },
+      {
+        name: "description",
+        content:
+          "Upload PDFs locally, edit detected text inline, use undo and redo, and install the app for offline work.",
+      },
     ],
   }),
 });

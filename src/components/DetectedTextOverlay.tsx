@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { DetectedTextItem } from "@/hooks/use-pdf-storage";
+import type { DetectedTextItem } from "@/lib/pdf-types";
 import { Pencil } from "lucide-react";
 
 interface Props {
@@ -28,9 +28,7 @@ export function DetectedTextOverlay({ item, onEdit }: Props) {
     >
       <div
         className={`h-full w-full rounded-sm transition-colors ${
-          hovered
-            ? "bg-primary/15 outline outline-1 outline-primary/60"
-            : "bg-transparent"
+          hovered ? "bg-primary/15 outline outline-1 outline-primary/60" : "bg-transparent"
         }`}
       />
       {hovered && (
