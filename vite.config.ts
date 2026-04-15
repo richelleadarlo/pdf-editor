@@ -11,7 +11,7 @@ export default defineConfig({
     tsconfigPaths(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "pwa-icon.svg"],
+      includeAssets: ["favicon.ico"],
       manifest: {
         name: "PDF Editor",
         short_name: "PDF Editor",
@@ -22,10 +22,10 @@ export default defineConfig({
         start_url: "/",
         icons: [
           {
-            src: "/pwa-icon.svg",
-            sizes: "any",
-            type: "image/svg+xml",
-            purpose: "any maskable",
+            src: "/favicon.ico",
+            sizes: "48x48 64x64 96x96 128x128 256x256",
+            type: "image/x-icon",
+            purpose: "any",
           },
         ],
       },
