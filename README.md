@@ -1,23 +1,23 @@
-# 📄 Local-First PDF Editor
+# Local-First PDF Editor
 
 A browser-based PDF editor built with **React + Vite + Tailwind CSS** that allows users to upload, edit, and save PDFs directly on their device.
 
-## 🚀 Overview
+## Overview
 
 This project is a **local-first web application**, meaning all data is stored in the browser using `localStorage`. Once a PDF is uploaded, it is automatically saved and restored when the user revisits the app—no re-upload needed.
 
-## ✨ Features
+## Features
 
-- 📥 Upload and render PDF files
-- ✏️ Add and edit text overlays
-- 🎨 Customize text (font size, font family, color)
-- ✍️ Add signatures (draw or upload)
-- 🖱️ Drag and resize elements
-- 💾 Automatic saving using `localStorage`
-- 🔄 Restore previous session on reload
-- 📤 Export edited PDF
+- Upload and render PDF files
+- Add and edit text overlays
+- Customize text (font size, font family, color)
+- Add signatures (draw or upload)
+- Drag and resize elements
+- Automatic saving using `localStorage`
+- Restore previous session on reload
+- Export edited PDF
 
-## 🧱 Tech Stack
+## Tech Stack
 
 - React (Vite)
 - Tailwind CSS
@@ -25,10 +25,10 @@ This project is a **local-first web application**, meaning all data is stored in
 - pdf-lib
 - localStorage
 
-## ⚙️ Installation & Setup
+## Installation & Setup
 
 1. Clone the repository:
-git clone <your-repo-url>
+git clone <https://github.com/richelleadarlo/pdf-editor.git>
 cd pdf-editor
 
 2. Install dependencies:
@@ -40,7 +40,7 @@ npm run dev
 4. Open in browser:
 http://localhost:5173
 
-## 📁 Project Structure
+## Project Structure
 
 src/
  ├── components/
@@ -54,7 +54,7 @@ src/
  ├── App.jsx
  ├── main.jsx
 
-## 💾 How Local Storage Works
+## How Local Storage Works
 
 - The uploaded PDF is converted into a Base64 string and stored in localStorage.
 - All edits (text, positions, styles, signatures) are stored as JSON.
@@ -79,14 +79,14 @@ Example:
 
 - On page load, the app checks localStorage and restores the previous session automatically.
 
-## 🧠 Key Concept: Local-First Behavior
+## Key Concept: Local-First Behavior
 
 Once a PDF is uploaded:
 - It is saved entirely in browser storage
 - All edits are auto-saved
 - Reopening the bookmarked page restores everything instantly
 
-## 📤 Exporting PDFs
+## Exporting PDFs
 
 - Uses pdf-lib to merge:
   - Original PDF
@@ -94,13 +94,13 @@ Once a PDF is uploaded:
   - Signature images
 - Outputs a downloadable edited PDF
 
-## ⚠️ Limitations
+## Limitations
 
 - Does NOT directly edit original PDF text (uses overlays instead)
 - Large PDFs may exceed localStorage limits
 - Best suited for small to medium-sized documents
 
-## 🚀 Future Improvements
+## Future Improvements
 
 - Use IndexedDB for larger file storage
 - Add undo/redo functionality
@@ -109,15 +109,15 @@ Once a PDF is uploaded:
 - Dark mode
 - Convert into a Progressive Web App (PWA)
 
-## 📌 Notes
+## Notes
 
 - This app runs entirely on the client-side
 - No backend or database is used
 - Works offline after initial load (if cached properly)
 
-## 👩‍💻 Author
+## Author
 
-Developed as a modern, lightweight alternative to traditional PDF editors with a focus on privacy and offline usability.
+Developed by **Richelle Adarlo** as a modern, lightweight alternative to traditional PDF editors with a focus on privacy and offline usability.
 
 ---
 
