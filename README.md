@@ -2,6 +2,8 @@
 
 A browser-based PDF editor built with **React + Vite + Tailwind CSS** that allows users to upload, edit, and save PDFs directly on their device.
 
+![website favicon](public/favicon.ico)
+
 ## Overview
 
 This project is a **local-first web application**, meaning PDF data and edit state are stored in the browser with IndexedDB. Once a PDF is uploaded, it is automatically saved and restored when the user revisits the app without requiring a re-upload.
