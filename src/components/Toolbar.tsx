@@ -8,9 +8,7 @@ import {
   PenLine,
   Download,
   MousePointer2,
-  Moon,
   Redo2,
-  SunMedium,
   Undo2,
   Trash2,
   CopyPlus,
@@ -32,8 +30,6 @@ interface Props {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  theme: ThemeMode;
-  onToggleTheme: () => void;
   currentPage: number;
   totalPages: number;
   onPreviousPage: () => void;
@@ -64,8 +60,6 @@ export function Toolbar({
   onRedo,
   canUndo,
   canRedo,
-  theme,
-  onToggleTheme,
   currentPage,
   totalPages,
   onPreviousPage,
@@ -188,15 +182,6 @@ export function Toolbar({
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-
-          <Button variant="ghost" size="sm" onClick={onToggleTheme}>
-            {theme === "dark" ? (
-              <SunMedium className="mr-1 h-4 w-4" />
-            ) : (
-              <Moon className="mr-1 h-4 w-4" />
-            )}
-            {theme === "dark" ? "Light" : "Dark"}
-          </Button>
 
           <div className="flex-1" />
 

@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import type { UsePdfStorageResult } from "@/hooks/use-pdf-storage";
-import { useTheme } from "@/hooks/use-theme";
 import { PDFViewer } from "./PDFViewer";
 import { Toolbar } from "./Toolbar";
 import { SignatureDialog } from "./SignatureDialog";
@@ -32,7 +31,6 @@ export function PDFEditor({ storage }: PDFEditorProps) {
     canUndo,
     canRedo,
   } = storage;
-  const { theme, toggleTheme } = useTheme();
 
   const [activeTool, setActiveTool] = useState<"select" | "text" | "signature" | null>("select");
   const [fontSize, setFontSize] = useState(16);
@@ -334,8 +332,6 @@ export function PDFEditor({ storage }: PDFEditorProps) {
         onRedo={redo}
         canUndo={canUndo}
         canRedo={canRedo}
-        theme={theme}
-        onToggleTheme={toggleTheme}
         currentPage={currentPage}
         totalPages={pageCount}
         onPreviousPage={() => handleNavigatePage(currentPage - 1)}

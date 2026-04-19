@@ -5,11 +5,7 @@ import appCss from "../styles.css?url";
 
 const themeInitScript = `(() => {
   try {
-    const storedTheme = window.localStorage.getItem("pdf-editor-theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const theme = storedTheme === "light" || storedTheme === "dark" ? storedTheme : (prefersDark ? "dark" : "light");
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    document.documentElement.style.colorScheme = theme;
+    document.documentElement.style.colorScheme = "light";
   } catch {}
 })();`;
 
