@@ -207,10 +207,22 @@ export function usePdfStorage() {
 
         setDocuments(storedDocuments);
 
+        // A new tab opened with ?doc=<id> takes priority over the persisted active document.
+        let urlDocumentId: string | null = null;
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          urlDocumentId = params.get("doc");
+          if (urlDocumentId) {
+            window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+          }
+        }
+
         const nextActiveDocumentId =
-          storedActiveDocumentId && storedDocuments.some((document) => document.id === storedActiveDocumentId)
-            ? storedActiveDocumentId
-            : migratedDocumentId ?? null;
+          urlDocumentId && storedDocuments.some((d) => d.id === urlDocumentId)
+            ? urlDocumentId
+            : storedActiveDocumentId && storedDocuments.some((d) => d.id === storedActiveDocumentId)
+              ? storedActiveDocumentId
+              : migratedDocumentId ?? null;
 
         if (nextActiveDocumentId) {
           await hydrateActiveDocument(nextActiveDocumentId, { touch: false });

@@ -3,6 +3,7 @@ import {
   ArrowDownAZ,
   ArrowUpAZ,
   Clock3,
+  ExternalLink,
   FilePlus2,
   FileText,
   FolderOpen,
@@ -15,6 +16,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { getStoredDocument } from "@/lib/pdf-storage-db";
 import { cn } from "@/lib/utils";
 import type { StoredPdfDocumentSummary } from "@/lib/pdf-types";
@@ -221,6 +229,11 @@ export function DocumentLibrary({
       }
     });
   }, [documents, query, sortKey]);
+
+  const openInNewTab = (id: string) => {
+    const url = `${window.location.origin}${window.location.pathname}?doc=${encodeURIComponent(id)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   const startRename = (event: React.MouseEvent, doc: StoredPdfDocumentSummary) => {
     event.stopPropagation();
@@ -448,23 +461,24 @@ export function DocumentLibrary({
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
               {displayDocuments.map((document, index) => (
-                <div
-                  key={document.id}
-                  className="group"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    if (renamingId === document.id) return;
-                    void onOpenDocument(document.id);
-                  }}
-                  onKeyDown={(event) => {
-                    if (renamingId === document.id) return;
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
+                <ContextMenu key={document.id}>
+                  <ContextMenuTrigger asChild>
+                  <div
+                    className="group"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      if (renamingId === document.id) return;
                       void onOpenDocument(document.id);
-                    }
-                  }}
-                >
+                    }}
+                    onKeyDown={(event) => {
+                      if (renamingId === document.id) return;
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        void onOpenDocument(document.id);
+                      }
+                    }}
+                  >
                   <Card className="overflow-hidden rounded-[1.75rem] border-border/60 bg-background/90 shadow-[0_22px_50px_-38px_rgba(15,23,42,0.55)] transition duration-200 group-hover:-translate-y-1 group-hover:shadow-[0_30px_70px_-36px_rgba(15,23,42,0.48)]">
                     <div className={cn("relative min-h-56 border-b border-border/60 bg-linear-to-br p-5", buildAccent(index))}>
                       <button
@@ -526,7 +540,43 @@ export function DocumentLibrary({
                       </div>
                     </CardContent>
                   </Card>
-                </div>
+                  </div>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-52">
+                    <ContextMenuItem
+                      className="gap-2"
+                      onSelect={() => void onOpenDocument(document.id)}
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                      Open in editor
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      className="gap-2"
+                      onSelect={() => openInNewTab(document.id)}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Open in new tab
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem
+                      className="gap-2"
+                      onSelect={() => {
+                        setRenameValue(document.pdfFileName.replace(/\.pdf$/i, ""));
+                        setRenamingId(document.id);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Rename
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      className="gap-2 text-destructive focus:text-destructive"
+                      onSelect={() => void onDeleteDocument(document.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
               ))}
             </div>
           )}
