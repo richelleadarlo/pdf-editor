@@ -2,7 +2,11 @@
 
 A browser-based PDF editor built with **React + Vite + Tailwind CSS** that allows users to upload, edit, and save PDFs directly on their device.
 
-![website favicon](public/favicon.ico)
+Visit the site here: pdf-editor-blush-three.vercel.app
+
+![website screenshot 1](public/ss1.png)
+![website screenshot 2](public/ss2.png)
+![website screenshot 3](public/ss3.png)
 
 ## Overview
 
