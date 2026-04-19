@@ -269,9 +269,7 @@ export function DocumentLibrary({
       <header className="border-b border-border/60 bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/12 shadow-sm">
-              <img src="/favicon.ico" alt="PDF Editor" className="h-7 w-7 object-contain" />
-            </div>
+            <img src="/favicon.ico" alt="PDF Editor" className="h-11 w-11 object-contain sm:h-12 sm:w-12" />
             <div>
               <p className="text-lg font-semibold tracking-tight">PDF Editor</p>
               <p className="text-xs text-muted-foreground">Local-first PDF workspace</p>
@@ -414,7 +412,7 @@ export function DocumentLibrary({
         <section>
           <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight">Documents</h2>
+              <h2 className="text-2xl font-semibold tracking-tight">PDFs</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {displayDocuments.length === documents.length
                   ? `${documents.length} PDF${documents.length === 1 ? "" : "s"} in your workspace`
