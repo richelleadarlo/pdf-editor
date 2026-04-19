@@ -3,6 +3,7 @@ import {
   ArrowDownAZ,
   ArrowUpAZ,
   Clock3,
+  X,
   ExternalLink,
   FilePlus2,
   FileText,
@@ -319,20 +320,32 @@ export function DocumentLibrary({
       </header>
 
       <main className="mx-auto flex max-w-7xl flex-col gap-10 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="rounded-full border border-border/60 bg-background/70 px-3 backdrop-blur-sm hover:bg-background"
-            onClick={() => setShowLibrarySummary((current) => !current)}
-          >
-            {showLibrarySummary ? "Hide statistics" : "Show statistics"}
-          </Button>
-        </div>
+        {!showLibrarySummary ? (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="rounded-full border border-border/60 bg-background/70 px-3 backdrop-blur-sm hover:bg-background"
+              onClick={() => setShowLibrarySummary(true)}
+            >
+              Show statistics
+            </Button>
+          </div>
+        ) : null}
 
         {showLibrarySummary ? (
-          <section className="rounded-[2rem] border border-border/60 bg-linear-to-br from-slate-50 via-white to-sky-50/70 p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
+          <section className="relative rounded-[2rem] border border-border/60 bg-linear-to-br from-slate-50 via-white to-sky-50/70 p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-4 top-4 h-9 w-9 rounded-full border border-border/60 bg-background/70 backdrop-blur-sm hover:bg-background"
+              onClick={() => setShowLibrarySummary(false)}
+              aria-label="Hide statistics"
+            >
+              <X className="h-4 w-4" />
+            </Button>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-2xl space-y-4">
                 <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/8 px-3 py-1 text-xs font-medium text-primary">

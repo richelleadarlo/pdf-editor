@@ -114,8 +114,18 @@ export function usePdfStorage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeDocumentIdRef = useRef<string | null>(null);
+  const editsRef = useRef<EditItem[]>(EMPTY_HISTORY.present);
 
   const edits = history.present;
+
+  useEffect(() => {
+    activeDocumentIdRef.current = activeDocumentId;
+  }, [activeDocumentId]);
+
+  useEffect(() => {
+    editsRef.current = edits;
+  }, [edits]);
 
   const resetActiveDocumentState = useCallback(() => {
     setPdfBytes(null);
@@ -136,6 +146,8 @@ export function usePdfStorage() {
       if (!storedDocument) {
         await setStoredActiveDocumentId(null);
         setActiveDocumentId(null);
+        activeDocumentIdRef.current = null;
+        editsRef.current = EMPTY_HISTORY.present;
         resetActiveDocumentState();
         await refreshDocuments();
         return;
@@ -144,6 +156,8 @@ export function usePdfStorage() {
       setActiveDocumentId(documentId);
       setPdfBytes(storedDocument.pdfBytes);
       setPdfFileName(storedDocument.pdfFileName);
+      activeDocumentIdRef.current = documentId;
+      editsRef.current = storedDocument.edits;
       setHistory({
         past: [],
         present: storedDocument.edits,
@@ -228,6 +242,8 @@ export function usePdfStorage() {
           await hydrateActiveDocument(nextActiveDocumentId, { touch: false });
         } else {
           setActiveDocumentId(null);
+          activeDocumentIdRef.current = null;
+          editsRef.current = EMPTY_HISTORY.present;
           resetActiveDocumentState();
         }
       } catch (e) {
@@ -252,11 +268,14 @@ export function usePdfStorage() {
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      updateStoredDocumentEdits(activeDocumentId, edits)
+      const latestDocumentId = activeDocumentIdRef.current;
+      if (!latestDocumentId) return;
+
+      updateStoredDocumentEdits(latestDocumentId, editsRef.current)
         .then(() => refreshDocuments())
         .catch((error) => {
-        console.error("Error saving edits:", error);
-      });
+          console.error("Error saving edits:", error);
+        });
     }, 250);
 
     return () => {
@@ -265,6 +284,40 @@ export function usePdfStorage() {
       }
     };
   }, [activeDocumentId, edits, isLoading, refreshDocuments]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const persistLatestEdits = () => {
+      const latestDocumentId = activeDocumentIdRef.current;
+      if (!latestDocumentId) return;
+
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+
+      void updateStoredDocumentEdits(latestDocumentId, editsRef.current).catch((error) => {
+        console.error("Error saving edits during page lifecycle event:", error);
+      });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        persistLatestEdits();
+      }
+    };
+
+    window.addEventListener("pagehide", persistLatestEdits);
+    window.addEventListener("beforeunload", persistLatestEdits);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pagehide", persistLatestEdits);
+      window.removeEventListener("beforeunload", persistLatestEdits);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   const setEditsWithHistory = useCallback(
     (
@@ -282,16 +335,17 @@ export function usePdfStorage() {
   );
 
   const flushActiveEdits = useCallback(async () => {
-    if (!activeDocumentId) return;
+    const latestDocumentId = activeDocumentIdRef.current;
+    if (!latestDocumentId) return;
 
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
 
-    await updateStoredDocumentEdits(activeDocumentId, edits);
+    await updateStoredDocumentEdits(latestDocumentId, editsRef.current);
     await refreshDocuments();
-  }, [activeDocumentId, edits, refreshDocuments]);
+  }, [refreshDocuments]);
 
   const uploadPdfs = useCallback(
     async (files: File[], options?: { openFirst?: boolean }) => {
@@ -351,6 +405,8 @@ export function usePdfStorage() {
   const closeDocument = useCallback(async () => {
     await flushActiveEdits();
     setActiveDocumentId(null);
+    activeDocumentIdRef.current = null;
+    editsRef.current = EMPTY_HISTORY.present;
     resetActiveDocumentState();
     await setStoredActiveDocumentId(null);
   }, [flushActiveEdits, resetActiveDocumentState]);
