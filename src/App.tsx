@@ -25,6 +25,7 @@ export function App() {
           onUploadFiles={pdfStorage.uploadPdfs}
           onOpenDocument={pdfStorage.openDocument}
           onDeleteDocument={pdfStorage.deleteDocument}
+          onRenameDocument={pdfStorage.renameDocument}
         />
       )}
       <Toaster richColors closeButton position="bottom-right" />

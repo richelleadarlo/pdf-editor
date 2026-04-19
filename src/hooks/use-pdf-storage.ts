@@ -6,6 +6,7 @@ import {
   getStoredActiveDocumentId,
   getStoredDocument,
   listStoredDocuments,
+  renameStoredDocument,
   saveStoredDocument,
   setStoredActiveDocumentId,
   touchStoredDocument,
@@ -92,6 +93,7 @@ export interface UsePdfStorageResult {
   openDocument: (id: string) => Promise<void>;
   closeDocument: () => Promise<void>;
   deleteDocument: (id: string) => Promise<void>;
+  renameDocument: (id: string, newFileName: string) => Promise<void>;
   addEdit: (edit: EditItem) => void;
   updateEdit: (id: string, updates: EditUpdate) => void;
   previewEdit: (id: string, updates: EditUpdate) => void;
@@ -354,6 +356,19 @@ export function usePdfStorage() {
     [activeDocumentId, closeDocument, refreshDocuments],
   );
 
+  const renameDocument = useCallback(
+    async (id: string, newFileName: string) => {
+      await renameStoredDocument(id, newFileName);
+
+      if (activeDocumentId === id) {
+        setPdfFileName(newFileName);
+      }
+
+      await refreshDocuments();
+    },
+    [activeDocumentId, refreshDocuments],
+  );
+
   const addEdit = useCallback(
     (edit: EditItem) => {
       setEditsWithHistory((current) => [...current, edit]);
@@ -449,6 +464,7 @@ export function usePdfStorage() {
     openDocument,
     closeDocument,
     deleteDocument: removeDocument,
+    renameDocument,
     addEdit,
     updateEdit,
     previewEdit,

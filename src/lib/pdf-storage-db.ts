@@ -289,6 +289,17 @@ export function deleteStoredDocument(id: string) {
   return deleteDocumentRecord(id);
 }
 
+export async function renameStoredDocument(id: string, newFileName: string) {
+  const record = await getDocumentRecord(id);
+  if (!record) return;
+
+  await putDocumentRecord({
+    ...record,
+    pdfFileName: newFileName,
+    updatedAt: Date.now(),
+  });
+}
+
 export async function getStoredActiveDocumentId() {
   return getValue<string | null>(SETTINGS_STORE_NAME, ACTIVE_DOCUMENT_ID_KEY);
 }

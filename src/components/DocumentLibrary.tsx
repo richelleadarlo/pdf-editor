@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowDownAZ,
+  ArrowUpAZ,
   Clock3,
   FilePlus2,
   FileText,
   FolderOpen,
   LoaderCircle,
+  Pencil,
   Search,
   Sparkles,
   Trash2,
@@ -22,6 +25,7 @@ interface DocumentLibraryProps {
   onUploadFiles: (files: File[]) => Promise<void>;
   onOpenDocument: (documentId: string) => Promise<void>;
   onDeleteDocument: (documentId: string) => Promise<void>;
+  onRenameDocument: (documentId: string, newName: string) => Promise<void>;
 }
 
 function formatBytes(size: number) {
@@ -50,6 +54,16 @@ function buildAccent(index: number) {
 
   return accents[index % accents.length];
 }
+
+type SortKey = "recent" | "modified" | "name-asc" | "name-desc" | "size";
+
+const SORT_OPTIONS: { key: SortKey; label: string; icon?: React.ReactNode }[] = [
+  { key: "recent", label: "Recent" },
+  { key: "modified", label: "Modified" },
+  { key: "name-asc", label: "Name", icon: <ArrowDownAZ className="h-3.5 w-3.5" /> },
+  { key: "name-desc", label: "Name", icon: <ArrowUpAZ className="h-3.5 w-3.5" /> },
+  { key: "size", label: "Size" },
+];
 
 const thumbnailCache = new Map<string, string>();
 let pdfjsModulePromise: Promise<typeof import("pdfjs-dist")> | null = null;
@@ -169,19 +183,67 @@ export function DocumentLibrary({
   onUploadFiles,
   onOpenDocument,
   onDeleteDocument,
+  onRenameDocument,
 }: DocumentLibraryProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("recent");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
-  const filteredDocuments = useMemo(() => {
+  useEffect(() => {
+    if (renamingId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingId]);
+
+  const displayDocuments = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return documents;
+    const filtered = normalizedQuery
+      ? documents.filter((doc) => doc.pdfFileName.toLowerCase().includes(normalizedQuery))
+      : documents;
 
-    return documents.filter((document) => document.pdfFileName.toLowerCase().includes(normalizedQuery));
-  }, [documents, query]);
+    return [...filtered].sort((a, b) => {
+      switch (sortKey) {
+        case "recent":
+          return b.lastOpenedAt - a.lastOpenedAt;
+        case "modified":
+          return b.updatedAt - a.updatedAt;
+        case "name-asc":
+          return a.pdfFileName.localeCompare(b.pdfFileName, undefined, { sensitivity: "base" });
+        case "name-desc":
+          return b.pdfFileName.localeCompare(a.pdfFileName, undefined, { sensitivity: "base" });
+        case "size":
+          return b.size - a.size;
+      }
+    });
+  }, [documents, query, sortKey]);
 
-  const recentDocuments = filteredDocuments.slice(0, 8);
+  const startRename = (event: React.MouseEvent, doc: StoredPdfDocumentSummary) => {
+    event.stopPropagation();
+    setRenameValue(doc.pdfFileName.replace(/\.pdf$/i, ""));
+    setRenamingId(doc.id);
+  };
+
+  const commitRename = async (id: string) => {
+    const original = documents.find((doc) => doc.id === id)?.pdfFileName ?? "";
+    const trimmed = renameValue.trim();
+    const nextName = trimmed ? (trimmed.toLowerCase().endsWith(".pdf") ? trimmed : `${trimmed}.pdf`) : original;
+    setRenamingId(null);
+    if (nextName !== original) {
+      await onRenameDocument(id, nextName);
+    }
+  };
+
+  const cancelRename = () => setRenamingId(null);
+
+  const recentDocuments = useMemo(
+    () => [...documents].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt).slice(0, 8),
+    [documents],
+  );
 
   const handleFileSelection = async (fileList: FileList | null) => {
     const files = Array.from(fileList ?? []).filter((file) => file.type === "application/pdf");
@@ -337,18 +399,37 @@ export function DocumentLibrary({
         </section>
 
         <section>
-          <div className="mb-5 flex items-center justify-between gap-4">
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight">Recent documents</h2>
+              <h2 className="text-2xl font-semibold tracking-tight">Documents</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {filteredDocuments.length === documents.length
-                  ? "Your imported PDFs, sorted by the last document you opened."
-                  : `Showing ${filteredDocuments.length} of ${documents.length} documents.`}
+                {displayDocuments.length === documents.length
+                  ? `${documents.length} PDF${documents.length === 1 ? "" : "s"} in your workspace`
+                  : `Showing ${displayDocuments.length} of ${documents.length} documents`}
               </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              {SORT_OPTIONS.map(({ key, label, icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSortKey(key)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition",
+                    sortKey === key
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                  )}
+                >
+                  {icon}
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {filteredDocuments.length === 0 ? (
+          {displayDocuments.length === 0 ? (
             <Card className="rounded-[1.75rem] border-border/60 bg-background/85 shadow-none">
               <CardContent className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -366,14 +447,18 @@ export function DocumentLibrary({
             </Card>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-              {filteredDocuments.map((document, index) => (
+              {displayDocuments.map((document, index) => (
                 <div
                   key={document.id}
                   className="group"
                   role="button"
                   tabIndex={0}
-                  onClick={() => onOpenDocument(document.id)}
+                  onClick={() => {
+                    if (renamingId === document.id) return;
+                    void onOpenDocument(document.id);
+                  }}
                   onKeyDown={(event) => {
+                    if (renamingId === document.id) return;
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
                       void onOpenDocument(document.id);
@@ -401,9 +486,38 @@ export function DocumentLibrary({
 
                     <CardContent className="space-y-3 p-5">
                       <div>
-                        <p className="line-clamp-2 text-base font-semibold leading-6 text-foreground">
-                          {document.pdfFileName}
-                        </p>
+                        {renamingId === document.id ? (
+                          <input
+                            ref={renameInputRef}
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onBlur={() => void commitRename(document.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                void commitRename(document.id);
+                              } else if (e.key === "Escape") {
+                                cancelRename();
+                              }
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full rounded-md border border-primary/40 bg-background px-2 py-1 text-base font-semibold leading-6 text-foreground outline-none focus:ring-2 focus:ring-primary/30"
+                          />
+                        ) : (
+                          <div className="flex items-start gap-1.5">
+                            <p className="line-clamp-2 flex-1 text-base font-semibold leading-6 text-foreground">
+                              {document.pdfFileName}
+                            </p>
+                            <button
+                              type="button"
+                              aria-label={`Rename ${document.pdfFileName}`}
+                              className="mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition hover:text-foreground group-hover:opacity-100 focus:opacity-100"
+                              onClick={(e) => startRename(e, document)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
                         <p className="mt-1 text-sm text-muted-foreground">Updated {formatUpdatedAt(document.updatedAt)}</p>
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
