@@ -199,7 +199,19 @@ export function DocumentLibrary({
   const [dragActive, setDragActive] = useState(false);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("recent");
-  const [showLibrarySummary, setShowLibrarySummary] = useState(true);
+  const [showLibrarySummary, setShowLibrarySummary] = useState(
+    () => localStorage.getItem("library-summary-hidden") !== "true",
+  );
+
+  const handleHideLibrarySummary = () => {
+    localStorage.setItem("library-summary-hidden", "true");
+    setShowLibrarySummary(false);
+  };
+
+  const handleShowLibrarySummary = () => {
+    localStorage.removeItem("library-summary-hidden");
+    setShowLibrarySummary(true);
+  };
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
@@ -327,7 +339,7 @@ export function DocumentLibrary({
               variant="ghost"
               size="sm"
               className="rounded-full border border-border/60 bg-background/70 px-3 backdrop-blur-sm hover:bg-background"
-              onClick={() => setShowLibrarySummary(true)}
+              onClick={() => handleShowLibrarySummary()}
             >
               Show statistics
             </Button>
@@ -341,7 +353,7 @@ export function DocumentLibrary({
               variant="ghost"
               size="icon"
               className="absolute right-4 top-4 h-9 w-9 rounded-full border border-border/60 bg-background/70 backdrop-blur-sm hover:bg-background"
-              onClick={() => setShowLibrarySummary(false)}
+              onClick={() => handleHideLibrarySummary()}
               aria-label="Hide statistics"
             >
               <X className="h-4 w-4" />
