@@ -198,6 +198,7 @@ export function DocumentLibrary({
   const [dragActive, setDragActive] = useState(false);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("recent");
+  const [showLibrarySummary, setShowLibrarySummary] = useState(true);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
@@ -318,96 +319,110 @@ export function DocumentLibrary({
       </header>
 
       <main className="mx-auto flex max-w-7xl flex-col gap-10 px-4 py-8 sm:px-6 lg:px-8">
-        <section className="rounded-[2rem] border border-border/60 bg-linear-to-br from-slate-50 via-white to-sky-50/70 p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/8 px-3 py-1 text-xs font-medium text-primary">
-                <Sparkles className="h-3.5 w-3.5" />
-                Inspired by the Google Docs launcher, tailored for PDFs
-              </div>
-              <div>
-                <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-                  Start in the library, jump into editing when a document matters.
-                </h1>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-                  Import multiple PDFs, keep them stored locally in your browser, and open any file into the existing page-aware editor when you need to make changes.
-                </p>
-              </div>
-            </div>
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="rounded-full border border-border/60 bg-background/70 px-3 backdrop-blur-sm hover:bg-background"
+            onClick={() => setShowLibrarySummary((current) => !current)}
+          >
+            {showLibrarySummary ? "Hide statistics" : "Show statistics"}
+          </Button>
+        </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Card className="border-border/60 bg-background/80 shadow-none">
-                <CardContent className="p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Stored PDFs</p>
-                  <p className="mt-2 text-2xl font-semibold">{documents.length}</p>
-                </CardContent>
-              </Card>
-              <Card className="border-border/60 bg-background/80 shadow-none">
-                <CardContent className="p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Recent files</p>
-                  <p className="mt-2 text-2xl font-semibold">{recentDocuments.length}</p>
-                </CardContent>
-              </Card>
-              <Card className="border-border/60 bg-background/80 shadow-none">
-                <CardContent className="p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Storage model</p>
-                  <p className="mt-2 text-2xl font-semibold">Local</p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <p className="mb-4 text-sm font-medium text-foreground">Start a new document</p>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <button
-                type="button"
-                className={cn(
-                  "group flex min-h-64 flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-border bg-background/90 px-6 py-8 text-center transition",
-                  dragActive ? "border-primary bg-primary/6" : "hover:border-primary/50 hover:shadow-lg",
-                )}
-                onClick={() => inputRef.current?.click()}
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setDragActive(true);
-                }}
-                onDragLeave={() => setDragActive(false)}
-                onDrop={async (event) => {
-                  event.preventDefault();
-                  setDragActive(false);
-                  await handleFileSelection(event.dataTransfer.files);
-                }}
-                disabled={isLoading}
-              >
-                <div className="flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-primary/10 text-primary transition group-hover:scale-105">
-                  <FilePlus2 className="h-10 w-10" />
+        {showLibrarySummary ? (
+          <section className="rounded-[2rem] border border-border/60 bg-linear-to-br from-slate-50 via-white to-sky-50/70 p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/8 px-3 py-1 text-xs font-medium text-primary">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Inspired by Google Docs but tailored for PDFs ;)
                 </div>
-                <p className="mt-6 text-lg font-semibold">Blank import</p>
-                <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
-                  Drag and drop a batch of PDFs here, or browse your device and build a local document shelf.
-                </p>
-              </button>
+                <div>
+                  <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+                    Start in the library, jump into editing when a document matters.
+                  </h1>
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
+                    Import multiple PDFs, keep them stored locally in your browser, and open any file into the existing page-aware editor when you need to make changes.
+                  </p>
+                </div>
+              </div>
 
-              <Card className="rounded-[1.75rem] border-border/60 bg-background/80 shadow-none sm:col-span-1 xl:col-span-3">
-                <CardContent className="flex h-full flex-col justify-between gap-6 p-6 sm:flex-row sm:items-end">
-                  <div className="max-w-xl">
-                    <p className="text-sm font-medium text-foreground">Current workflow</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight">
-                      Open any PDF card below to launch the existing editor.
-                    </p>
-                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                      Your files and edits stay in IndexedDB on this device. The editor still supports inline text changes, signatures, page navigation, undo, redo, and export.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                    <FolderOpen className="h-4 w-4 text-primary" />
-                    Click a card to open it in the editor
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Card className="border-border/60 bg-background/80 shadow-none">
+                  <CardContent className="p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Stored PDFs</p>
+                    <p className="mt-2 text-2xl font-semibold">{documents.length}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60 bg-background/80 shadow-none">
+                  <CardContent className="p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Recent files</p>
+                    <p className="mt-2 text-2xl font-semibold">{recentDocuments.length}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60 bg-background/80 shadow-none">
+                  <CardContent className="p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Storage model</p>
+                    <p className="mt-2 text-2xl font-semibold">Local</p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-          </div>
-        </section>
+
+            <div className="mt-8">
+              <p className="mb-4 text-sm font-medium text-foreground">Start a new document</p>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <button
+                  type="button"
+                  className={cn(
+                    "group flex min-h-64 flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-border bg-background/90 px-6 py-8 text-center transition",
+                    dragActive ? "border-primary bg-primary/6" : "hover:border-primary/50 hover:shadow-lg",
+                  )}
+                  onClick={() => inputRef.current?.click()}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setDragActive(true);
+                  }}
+                  onDragLeave={() => setDragActive(false)}
+                  onDrop={async (event) => {
+                    event.preventDefault();
+                    setDragActive(false);
+                    await handleFileSelection(event.dataTransfer.files);
+                  }}
+                  disabled={isLoading}
+                >
+                  <div className="flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-primary/10 text-primary transition group-hover:scale-105">
+                    <FilePlus2 className="h-10 w-10" />
+                  </div>
+                  <p className="mt-6 text-lg font-semibold">Blank import</p>
+                  <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
+                    Drag and drop a batch of PDFs here, or browse your device and build a local document shelf.
+                  </p>
+                </button>
+
+                <Card className="rounded-[1.75rem] border-border/60 bg-background/80 shadow-none sm:col-span-1 xl:col-span-3">
+                  <CardContent className="flex h-full flex-col justify-between gap-6 p-6 sm:flex-row sm:items-end">
+                    <div className="max-w-xl">
+                      <p className="text-sm font-medium text-foreground">Current workflow</p>
+                      <p className="mt-2 text-2xl font-semibold tracking-tight">
+                        Open any PDF card below to launch the existing editor.
+                      </p>
+                      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                        Your files and edits stay in IndexedDB on this device. The editor still supports inline text changes, signatures, page navigation, undo, redo, and export.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                      <FolderOpen className="h-4 w-4 text-primary" />
+                      Click a card to open it in the editor
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <section>
           <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
