@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PDFEditor } from "@/components/PDFEditor";
+import { App } from "@/App";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -16,5 +16,5 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  return <PDFEditor />;
+  return <App />;
 }

@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import {
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   Upload,
@@ -17,10 +18,12 @@ import {
 import type { ThemeMode } from "@/hooks/use-theme";
 
 interface Props {
+  documentName: string;
   hasPdf: boolean;
   activeTool: "select" | "text" | "signature" | null;
   showTextControls: boolean;
   onToolChange: (tool: "select" | "text" | "signature") => void;
+  onBackToLibrary: () => void;
   onUpload: () => void;
   onSignature: () => void;
   onDownload: () => void;
@@ -47,10 +50,12 @@ interface Props {
 }
 
 export function Toolbar({
+  documentName,
   hasPdf,
   activeTool,
   showTextControls,
   onToolChange,
+  onBackToLibrary,
   onUpload,
   onSignature,
   onDownload,
@@ -76,8 +81,18 @@ export function Toolbar({
 }: Props) {
   return (
     <div className="sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-2 shadow-sm">
+      <Button variant="ghost" size="sm" onClick={onBackToLibrary}>
+        <ArrowLeft className="mr-1 h-4 w-4" /> Library
+      </Button>
+
+      {hasPdf && documentName ? (
+        <div className="max-w-48 truncate px-1 text-sm font-medium text-foreground">{documentName}</div>
+      ) : null}
+
+      <div className="mx-1 hidden h-6 w-px bg-border md:block" />
+
       <Button variant="outline" size="sm" onClick={onUpload}>
-        <Upload className="mr-1 h-4 w-4" /> Upload PDF
+        <Upload className="mr-1 h-4 w-4" /> Import PDF
       </Button>
 
       {hasPdf && (

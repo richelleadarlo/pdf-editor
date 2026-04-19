@@ -69,3 +69,17 @@ export interface RenderedPageSnapshot {
 }
 
 export type EditUpdate = Partial<TextEdit> | Partial<SignatureEdit> | Partial<OriginalTextEdit>;
+
+export interface StoredPdfDocumentSummary {
+  id: string;
+  pdfFileName: string;
+  size: number;
+  createdAt: number;
+  updatedAt: number;
+  lastOpenedAt: number;
+}
+
+export interface StoredPdfDocument extends StoredPdfDocumentSummary {
+  pdfBytes: Uint8Array;
+  edits: EditItem[];
+}

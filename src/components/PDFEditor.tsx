@@ -1,23 +1,28 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { usePdfStorage } from "@/hooks/use-pdf-storage";
+import type { UsePdfStorageResult } from "@/hooks/use-pdf-storage";
 import { useTheme } from "@/hooks/use-theme";
 import { PDFViewer } from "./PDFViewer";
 import { Toolbar } from "./Toolbar";
-import { UploadZone } from "./UploadZone";
 import { SignatureDialog } from "./SignatureDialog";
 import { PageNavigator } from "./PageNavigator";
 import { toast } from "sonner";
 import { exportPdfExactlyAsEdited, generateId, uint8ArrayToBlob } from "@/utils/pdf-helpers";
 import type { EditItem, DetectedTextItem } from "@/lib/pdf-types";
 
-export function PDFEditor() {
+interface PDFEditorProps {
+  storage: UsePdfStorageResult;
+}
+
+export function PDFEditor({ storage }: PDFEditorProps) {
   const {
+    activeDocument,
     pdfBytes,
     pdfFileName,
     edits,
     isLoading,
-    uploadPdf,
-    clearPdf,
+    uploadPdfs,
+    closeDocument,
+    deleteDocument,
     addEdit,
     updateEdit,
     replaceEdits,
@@ -26,7 +31,7 @@ export function PDFEditor() {
     redo,
     canUndo,
     canRedo,
-  } = usePdfStorage();
+  } = storage;
   const { theme, toggleTheme } = useTheme();
 
   const [activeTool, setActiveTool] = useState<"select" | "text" | "signature" | null>("select");
@@ -45,7 +50,7 @@ export function PDFEditor() {
 
   const handleUpload = async (file: File) => {
     try {
-      await uploadPdf(file);
+      await uploadPdfs([file], { openFirst: true });
       setActiveTool("select");
       setCurrentPage(1);
       setNavigateToPage(1);
@@ -297,10 +302,12 @@ export function PDFEditor() {
   }, [currentPage, edits, replaceEdits, selectedEdit]);
 
   const handleClear = useCallback(async () => {
-    await clearPdf();
+    if (!activeDocument) return;
+
+    await deleteDocument(activeDocument.id);
     setEditingEditId(null);
-    toast.success("Local PDF session cleared.");
-  }, [clearPdf]);
+    toast.success("Document removed from your local library.");
+  }, [activeDocument, deleteDocument]);
 
   if (isLoading) {
     return (
@@ -313,10 +320,12 @@ export function PDFEditor() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Toolbar
+        documentName={pdfFileName}
         hasPdf={!!pdfBytes}
         activeTool={activeTool}
         showTextControls={activeTool === "text" || !!selectedTextEdit || !!editingEditId}
         onToolChange={setActiveTool}
+        onBackToLibrary={closeDocument}
         onUpload={() => fileInputRef.current?.click()}
         onSignature={() => setSignatureOpen(true)}
         onDownload={handleDownload}
@@ -394,9 +403,7 @@ export function PDFEditor() {
             onNavigationHandled={() => setNavigateToPage(null)}
           />
         </div>
-      ) : (
-        <UploadZone onFile={handleUpload} />
-      )}
+      ) : null}
 
       <SignatureDialog
         open={signatureOpen}

@@ -1,14 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  clearStoredDocument,
-  clearStoredEdits,
-  getStoredEdits,
-  getStoredPdf,
-  saveStoredEdits,
-  saveStoredPdf,
+  clearLegacyStoredDocument,
+  deleteStoredDocument,
+  getLegacyStoredDocument,
+  getStoredActiveDocumentId,
+  getStoredDocument,
+  listStoredDocuments,
+  saveStoredDocument,
+  setStoredActiveDocumentId,
+  touchStoredDocument,
+  updateStoredDocumentEdits,
 } from "@/lib/pdf-storage-db";
-import type { EditItem, EditUpdate } from "@/lib/pdf-types";
-import { dataUrlToUint8Array } from "@/utils/pdf-helpers";
+import type { EditItem, EditUpdate, StoredPdfDocumentSummary } from "@/lib/pdf-types";
+import { dataUrlToUint8Array, generateId } from "@/utils/pdf-helpers";
 
 const LEGACY_PDF_KEY = "pdfFile";
 const LEGACY_EDITS_KEY = "pdfEdits";
@@ -75,66 +79,168 @@ async function migrateLegacyStorage() {
   };
 }
 
+export interface UsePdfStorageResult {
+  documents: StoredPdfDocumentSummary[];
+  activeDocumentId: string | null;
+  activeDocument: StoredPdfDocumentSummary | null;
+  pdfBytes: Uint8Array | null;
+  pdfFileName: string;
+  edits: EditItem[];
+  isLoading: boolean;
+  hasLoaded: boolean;
+  uploadPdfs: (files: File[], options?: { openFirst?: boolean }) => Promise<void>;
+  openDocument: (id: string) => Promise<void>;
+  closeDocument: () => Promise<void>;
+  deleteDocument: (id: string) => Promise<void>;
+  addEdit: (edit: EditItem) => void;
+  updateEdit: (id: string, updates: EditUpdate) => void;
+  previewEdit: (id: string, updates: EditUpdate) => void;
+  replaceEdits: (nextEdits: EditItem[]) => void;
+  removeEdit: (id: string) => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+}
+
 export function usePdfStorage() {
+  const [documents, setDocuments] = useState<StoredPdfDocumentSummary[]>([]);
+  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
   const [pdfFileName, setPdfFileName] = useState<string>("");
   const [history, setHistory] = useState<HistoryState>(EMPTY_HISTORY);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const edits = history.present;
 
+  const resetActiveDocumentState = useCallback(() => {
+    setPdfBytes(null);
+    setPdfFileName("");
+    setHistory(EMPTY_HISTORY);
+  }, []);
+
+  const refreshDocuments = useCallback(async () => {
+    const nextDocuments = await listStoredDocuments();
+    setDocuments(nextDocuments);
+    return nextDocuments;
+  }, []);
+
+  const hydrateActiveDocument = useCallback(
+    async (documentId: string, options?: { touch?: boolean }) => {
+      const storedDocument = await getStoredDocument(documentId);
+
+      if (!storedDocument) {
+        await setStoredActiveDocumentId(null);
+        setActiveDocumentId(null);
+        resetActiveDocumentState();
+        await refreshDocuments();
+        return;
+      }
+
+      setActiveDocumentId(documentId);
+      setPdfBytes(storedDocument.pdfBytes);
+      setPdfFileName(storedDocument.pdfFileName);
+      setHistory({
+        past: [],
+        present: storedDocument.edits,
+        future: [],
+      });
+
+      await setStoredActiveDocumentId(documentId);
+
+      if (options?.touch !== false) {
+        await touchStoredDocument(documentId);
+      }
+
+      await refreshDocuments();
+    },
+    [refreshDocuments, resetActiveDocumentState],
+  );
+
+  const migrateSingleDocumentIntoLibrary = useCallback(async () => {
+    const existingDocuments = await listStoredDocuments();
+    if (existingDocuments.length > 0) return null;
+
+    const legacyIndexedDbDocument = await getLegacyStoredDocument();
+    const legacyLocalStorageDocument = legacyIndexedDbDocument ?? (await migrateLegacyStorage());
+
+    if (!legacyLocalStorageDocument) {
+      return null;
+    }
+
+    const now = Date.now();
+    const documentId = generateId();
+
+    await saveStoredDocument({
+      id: documentId,
+      pdfBytes: legacyLocalStorageDocument.pdfBytes,
+      pdfFileName: legacyLocalStorageDocument.pdfFileName,
+      edits: legacyLocalStorageDocument.edits,
+      size: legacyLocalStorageDocument.pdfBytes.byteLength,
+      createdAt: now,
+      updatedAt: now,
+      lastOpenedAt: now,
+    });
+
+    await clearLegacyStoredDocument();
+    await setStoredActiveDocumentId(documentId);
+
+    return documentId;
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
-    const loadDocument = async () => {
+    const loadDocumentLibrary = async () => {
       try {
-        const [storedPdf, storedEdits] = await Promise.all([getStoredPdf(), getStoredEdits()]);
+        const migratedDocumentId = await migrateSingleDocumentIntoLibrary();
+        const [storedDocuments, storedActiveDocumentId] = await Promise.all([
+          listStoredDocuments(),
+          getStoredActiveDocumentId(),
+        ]);
 
         if (!isMounted) return;
 
-        if (storedPdf) {
-          setPdfBytes(storedPdf.pdfBytes);
-          setPdfFileName(storedPdf.pdfFileName);
-          setHistory({
-            past: [],
-            present: storedEdits,
-            future: [],
-          });
-        } else {
-          const migrated = await migrateLegacyStorage();
-          if (!isMounted || !migrated) return;
+        setDocuments(storedDocuments);
 
-          setPdfBytes(migrated.pdfBytes);
-          setPdfFileName(migrated.pdfFileName);
-          setHistory({
-            past: [],
-            present: migrated.edits,
-            future: [],
-          });
+        const nextActiveDocumentId =
+          storedActiveDocumentId && storedDocuments.some((document) => document.id === storedActiveDocumentId)
+            ? storedActiveDocumentId
+            : migratedDocumentId ?? null;
+
+        if (nextActiveDocumentId) {
+          await hydrateActiveDocument(nextActiveDocumentId, { touch: false });
+        } else {
+          setActiveDocumentId(null);
+          resetActiveDocumentState();
         }
       } catch (e) {
         console.error("Error loading persisted PDF state:", e);
       } finally {
         if (isMounted) {
           setIsLoading(false);
+          setHasLoaded(true);
         }
       }
     };
 
-    loadDocument();
+    loadDocumentLibrary();
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [hydrateActiveDocument, migrateSingleDocumentIntoLibrary, resetActiveDocumentState]);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || !activeDocumentId) return;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      saveStoredEdits(edits).catch((error) => {
+      updateStoredDocumentEdits(activeDocumentId, edits)
+        .then(() => refreshDocuments())
+        .catch((error) => {
         console.error("Error saving edits:", error);
       });
     }, 250);
@@ -144,7 +250,7 @@ export function usePdfStorage() {
         clearTimeout(debounceRef.current);
       }
     };
-  }, [edits, isLoading]);
+  }, [activeDocumentId, edits, isLoading, refreshDocuments]);
 
   const setEditsWithHistory = useCallback(
     (
@@ -161,24 +267,92 @@ export function usePdfStorage() {
     [],
   );
 
-  const uploadPdf = useCallback(async (file: File) => {
-    const nextPdfBytes = new Uint8Array(await file.arrayBuffer());
+  const flushActiveEdits = useCallback(async () => {
+    if (!activeDocumentId) return;
 
-    await Promise.all([saveStoredPdf(nextPdfBytes, file.name), clearStoredEdits()]);
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
 
-    setPdfBytes(nextPdfBytes);
-    setPdfFileName(file.name);
-    setHistory(EMPTY_HISTORY);
+    await updateStoredDocumentEdits(activeDocumentId, edits);
+    await refreshDocuments();
+  }, [activeDocumentId, edits, refreshDocuments]);
 
-    return nextPdfBytes;
-  }, []);
+  const uploadPdfs = useCallback(
+    async (files: File[], options?: { openFirst?: boolean }) => {
+      if (files.length === 0) return;
 
-  const clearPdf = useCallback(async () => {
-    await clearStoredDocument();
-    setPdfBytes(null);
-    setPdfFileName("");
-    setHistory(EMPTY_HISTORY);
-  }, []);
+      setIsLoading(true);
+
+      try {
+        if (options?.openFirst) {
+          await flushActiveEdits();
+        }
+
+        const now = Date.now();
+        const documentsToSave = await Promise.all(
+          files.map(async (file, index) => ({
+            id: generateId(),
+            pdfBytes: new Uint8Array(await file.arrayBuffer()),
+            pdfFileName: file.name,
+            edits: [],
+            size: file.size,
+            createdAt: now + index,
+            updatedAt: now + index,
+            lastOpenedAt: now + index,
+          })),
+        );
+
+        await Promise.all(documentsToSave.map((document) => saveStoredDocument(document)));
+        await refreshDocuments();
+
+        if (options?.openFirst && documentsToSave[0]) {
+          await hydrateActiveDocument(documentsToSave[0].id);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [flushActiveEdits, hydrateActiveDocument, refreshDocuments],
+  );
+
+  const openDocument = useCallback(
+    async (id: string) => {
+      setIsLoading(true);
+
+      try {
+        if (activeDocumentId && activeDocumentId !== id) {
+          await flushActiveEdits();
+        }
+
+        await hydrateActiveDocument(id);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [activeDocumentId, flushActiveEdits, hydrateActiveDocument],
+  );
+
+  const closeDocument = useCallback(async () => {
+    await flushActiveEdits();
+    setActiveDocumentId(null);
+    resetActiveDocumentState();
+    await setStoredActiveDocumentId(null);
+  }, [flushActiveEdits, resetActiveDocumentState]);
+
+  const removeDocument = useCallback(
+    async (id: string) => {
+      await deleteStoredDocument(id);
+
+      if (activeDocumentId === id) {
+        await closeDocument();
+      }
+
+      await refreshDocuments();
+    },
+    [activeDocumentId, closeDocument, refreshDocuments],
+  );
 
   const addEdit = useCallback(
     (edit: EditItem) => {
@@ -258,13 +432,23 @@ export function usePdfStorage() {
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
 
+  const activeDocument = activeDocumentId
+    ? documents.find((document) => document.id === activeDocumentId) ?? null
+    : null;
+
   return {
+    documents,
+    activeDocumentId,
+    activeDocument,
     pdfBytes,
     pdfFileName,
     edits,
     isLoading,
-    uploadPdf,
-    clearPdf,
+    hasLoaded,
+    uploadPdfs,
+    openDocument,
+    closeDocument,
+    deleteDocument: removeDocument,
     addEdit,
     updateEdit,
     previewEdit,
@@ -274,5 +458,5 @@ export function usePdfStorage() {
     redo,
     canUndo,
     canRedo,
-  };
+  } satisfies UsePdfStorageResult;
 }
