@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Clock3,
   FilePlus2,
   FileText,
   FolderOpen,
+  LoaderCircle,
   Search,
   Sparkles,
   Trash2,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { getStoredDocument } from "@/lib/pdf-storage-db";
 import { cn } from "@/lib/utils";
 import type { StoredPdfDocumentSummary } from "@/lib/pdf-types";
 
@@ -49,6 +51,118 @@ function buildAccent(index: number) {
   return accents[index % accents.length];
 }
 
+const thumbnailCache = new Map<string, string>();
+let pdfjsModulePromise: Promise<typeof import("pdfjs-dist")> | null = null;
+
+async function getPdfjsModule() {
+  if (!pdfjsModulePromise) {
+    pdfjsModulePromise = import("pdfjs-dist").then((pdfjsLib) => {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+        "pdfjs-dist/build/pdf.worker.min.mjs",
+        import.meta.url,
+      ).toString();
+
+      return pdfjsLib;
+    });
+  }
+
+  return pdfjsModulePromise;
+}
+
+async function generateThumbnail(documentId: string) {
+  if (thumbnailCache.has(documentId)) {
+    return thumbnailCache.get(documentId) ?? null;
+  }
+
+  const storedDocument = await getStoredDocument(documentId);
+  if (!storedDocument) return null;
+
+  const pdfjsLib = await getPdfjsModule();
+  const pdf = await pdfjsLib.getDocument({ data: storedDocument.pdfBytes.slice() }).promise;
+  const page = await pdf.getPage(1);
+  const initialViewport = page.getViewport({ scale: 1 });
+  const targetWidth = 220;
+  const scale = targetWidth / initialViewport.width;
+  const viewport = page.getViewport({ scale });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(viewport.width);
+  canvas.height = Math.round(viewport.height);
+
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+
+  await page.render({ canvasContext: context, viewport }).promise;
+
+  const thumbnail = canvas.toDataURL("image/png");
+  thumbnailCache.set(documentId, thumbnail);
+  return thumbnail;
+}
+
+function DocumentThumbnail({ documentId, fileName }: { documentId: string; fileName: string }) {
+  const [thumbnail, setThumbnail] = useState<string | null>(thumbnailCache.get(documentId) ?? null);
+  const [isLoading, setIsLoading] = useState(!thumbnail);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (thumbnailCache.has(documentId)) {
+      setThumbnail(thumbnailCache.get(documentId) ?? null);
+      setIsLoading(false);
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    setIsLoading(true);
+
+    void generateThumbnail(documentId)
+      .then((nextThumbnail) => {
+        if (isCancelled) return;
+        setThumbnail(nextThumbnail);
+      })
+      .catch((error) => {
+        if (isCancelled) return;
+        console.error("Failed to generate PDF thumbnail:", error);
+        setThumbnail(null);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [documentId]);
+
+  if (thumbnail) {
+    return (
+      <img
+        src={thumbnail}
+        alt={`Preview of ${fileName}`}
+        className="h-full w-full rounded-[1.25rem] object-cover object-top"
+        loading="lazy"
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center rounded-[1.25rem] bg-white px-5 py-6 text-slate-800 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.45)]">
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        {isLoading ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+      </div>
+      <p className="mt-4 text-sm font-medium text-slate-700">
+        {isLoading ? "Generating preview" : "Preview unavailable"}
+      </p>
+      <p className="mt-2 text-center text-xs leading-5 text-slate-500">
+        {isLoading ? "Rendering the first page from your stored PDF." : fileName}
+      </p>
+    </div>
+  );
+}
+
 export function DocumentLibrary({
   documents,
   isLoading,
@@ -76,7 +190,7 @@ export function DocumentLibrary({
   };
 
   return (
-    <div className="min-h-screen bg-transparent text-foreground">
+    <div className="library-light min-h-screen bg-transparent text-foreground">
       <header className="border-b border-border/60 bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
@@ -131,7 +245,7 @@ export function DocumentLibrary({
       </header>
 
       <main className="mx-auto flex max-w-7xl flex-col gap-10 px-4 py-8 sm:px-6 lg:px-8">
-        <section className="rounded-[2rem] border border-border/60 bg-linear-to-br from-slate-50 via-white to-sky-50/70 p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)] dark:from-slate-950/40 dark:via-slate-900/70 dark:to-sky-950/20">
+        <section className="rounded-[2rem] border border-border/60 bg-linear-to-br from-slate-50 via-white to-sky-50/70 p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/8 px-3 py-1 text-xs font-medium text-primary">
@@ -280,21 +394,8 @@ export function DocumentLibrary({
                         <Trash2 className="h-4 w-4" />
                       </button>
 
-                      <div className="mt-4 rounded-[1.25rem] bg-white px-5 py-6 text-slate-800 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.45)] dark:bg-slate-900 dark:text-slate-100">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                            <FileText className="h-5 w-5" />
-                          </div>
-                          <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                            PDF
-                          </span>
-                        </div>
-                        <div className="mt-8 space-y-2">
-                          <div className="h-2 w-24 rounded-full bg-slate-200 dark:bg-slate-700" />
-                          <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700" />
-                          <div className="h-2 w-5/6 rounded-full bg-slate-200 dark:bg-slate-700" />
-                          <div className="h-2 w-2/3 rounded-full bg-slate-200 dark:bg-slate-700" />
-                        </div>
+                      <div className="mt-4 h-[17rem] overflow-hidden rounded-[1.25rem] bg-white shadow-[0_18px_45px_-30px_rgba(15,23,42,0.45)]">
+                        <DocumentThumbnail documentId={document.id} fileName={document.pdfFileName} />
                       </div>
                     </div>
 
