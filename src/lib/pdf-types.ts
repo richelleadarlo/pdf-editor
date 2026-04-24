@@ -2,11 +2,15 @@ export interface TextEdit {
   id: string;
   type: "text";
   content: string;
+  richContent?: string;
   x: number;
   y: number;
   fontSize: number;
   fontFamily: string;
   color: string;
+  bold?: boolean;
+  underline?: boolean;
+  indent?: number;
   page: number;
   width?: number;
 }
@@ -27,6 +31,7 @@ export interface OriginalTextEdit {
   type: "original-text";
   originalContent: string;
   content: string;
+  richContent?: string;
   x: number;
   y: number;
   width: number;
@@ -34,6 +39,9 @@ export interface OriginalTextEdit {
   fontSize: number;
   fontFamily: string;
   color: string;
+  bold?: boolean;
+  underline?: boolean;
+  indent?: number;
   page: number;
   pdfX: number;
   pdfY: number;

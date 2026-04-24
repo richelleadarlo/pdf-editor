@@ -40,9 +40,15 @@ interface Props {
   fontSize: number;
   fontFamily: string;
   fontColor: string;
+  fontBold: boolean;
+  fontItalic: boolean;
+  fontUnderline: boolean;
   onFontSizeChange: (v: number) => void;
   onFontFamilyChange: (v: string) => void;
   onFontColorChange: (v: string) => void;
+  onFontBoldChange: () => void;
+  onFontItalicChange: () => void;
+  onFontUnderlineChange: () => void;
 }
 
 export function Toolbar({
@@ -69,12 +75,21 @@ export function Toolbar({
   fontSize,
   fontFamily,
   fontColor,
+  fontBold,
+  fontItalic,
+  fontUnderline,
   onFontSizeChange,
   onFontFamilyChange,
   onFontColorChange,
+  onFontBoldChange,
+  onFontItalicChange,
+  onFontUnderlineChange,
 }: Props) {
   return (
-    <div className="sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-2 shadow-sm">
+    <div
+      data-text-toolbar="true"
+      className="sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-2 shadow-sm"
+    >
       <Button variant="ghost" size="sm" onClick={onBackToLibrary}>
         <ArrowLeft className="mr-1 h-4 w-4" /> Library
       </Button>
@@ -156,6 +171,33 @@ export function Toolbar({
                 onChange={(e) => onFontColorChange(e.target.value)}
                 className="h-8 w-8 cursor-pointer rounded border border-input"
               />
+              <Button
+                variant={fontBold ? "toolbarActive" : "ghost"}
+                size="sm"
+                onClick={onFontBoldChange}
+                className="h-8 px-2 text-xs"
+                title="Bold"
+              >
+                B
+              </Button>
+              <Button
+                variant={fontItalic ? "toolbarActive" : "ghost"}
+                size="sm"
+                onClick={onFontItalicChange}
+                className="h-8 px-2 text-xs italic"
+                title="Italic"
+              >
+                I
+              </Button>
+              <Button
+                variant={fontUnderline ? "toolbarActive" : "ghost"}
+                size="sm"
+                onClick={onFontUnderlineChange}
+                className="h-8 px-2 text-xs"
+                title="Underline"
+              >
+                U
+              </Button>
             </>
           )}
 

@@ -36,6 +36,9 @@ export function PDFEditor({ storage }: PDFEditorProps) {
   const [fontSize, setFontSize] = useState(16);
   const [fontFamily, setFontFamily] = useState("Helvetica");
   const [fontColor, setFontColor] = useState("#000000");
+  const [fontBold, setFontBold] = useState(false);
+  const [fontItalic, setFontItalic] = useState(false);
+  const [fontUnderline, setFontUnderline] = useState(false);
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [pageCount, setPageCount] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
@@ -45,6 +48,7 @@ export function PDFEditor({ storage }: PDFEditorProps) {
   const [autoFocusEditId, setAutoFocusEditId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasScalesRef = useRef<Map<number, { scaleX: number; scaleY: number }>>(new Map());
+  const selectionRangeRef = useRef<Range | null>(null);
 
   const handleUpload = async (file: File) => {
     try {
@@ -231,6 +235,119 @@ export function PDFEditor({ storage }: PDFEditorProps) {
     selectedEdit && selectedEdit.type !== "original-text" && selectedEdit.page !== currentPage,
   );
 
+  const applyInlineStyleToSelection = useCallback(
+    (styles: Record<string, string>) => {
+      if (!selectedTextEdit || editingEditId !== selectedTextEdit.id) {
+        return false;
+      }
+
+      const editableElement = document.querySelector(
+        `[data-editable-text-id='${selectedTextEdit.id}']`,
+      ) as HTMLElement | null;
+      if (!editableElement) return false;
+
+      const selection = window.getSelection();
+      if (!selection) return false;
+
+      if (selection.rangeCount === 0 && selectionRangeRef.current) {
+        selection.removeAllRanges();
+        selection.addRange(selectionRangeRef.current.cloneRange());
+      }
+
+      if (selection.rangeCount === 0) {
+        return false;
+      }
+
+      const range = selection.getRangeAt(0);
+      if (range.collapsed || !editableElement.contains(range.commonAncestorContainer)) {
+        return false;
+      }
+
+      const fragment = range.extractContents();
+      const span = document.createElement("span");
+
+      for (const [key, value] of Object.entries(styles)) {
+        if (!value) continue;
+        const cssKey = key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+        span.style.setProperty(cssKey, value);
+      }
+
+      span.appendChild(fragment);
+      range.insertNode(span);
+
+      const nextRange = document.createRange();
+      nextRange.selectNodeContents(span);
+      selection.removeAllRanges();
+      selection.addRange(nextRange);
+      selectionRangeRef.current = nextRange.cloneRange();
+
+      editableElement.dispatchEvent(new Event("input", { bubbles: true }));
+      return true;
+    },
+    [editingEditId, selectedTextEdit],
+  );
+
+  const applyCommandToSelection = useCallback(
+    (command: "bold" | "italic" | "underline") => {
+      if (!selectedTextEdit || editingEditId !== selectedTextEdit.id) {
+        return false;
+      }
+
+      const editableElement = document.querySelector(
+        `[data-editable-text-id='${selectedTextEdit.id}']`,
+      ) as HTMLElement | null;
+      if (!editableElement) return false;
+
+      const selection = window.getSelection();
+      if (!selection) return false;
+
+      if (selection.rangeCount === 0 && selectionRangeRef.current) {
+        selection.removeAllRanges();
+        selection.addRange(selectionRangeRef.current.cloneRange());
+      }
+
+      if (selection.rangeCount === 0) {
+        return false;
+      }
+
+      const range = selection.getRangeAt(0);
+      if (range.collapsed || !editableElement.contains(range.commonAncestorContainer)) {
+        return false;
+      }
+
+      editableElement.focus();
+      const applied = document.execCommand(command, false);
+      editableElement.dispatchEvent(new Event("input", { bubbles: true }));
+      return applied;
+    },
+    [editingEditId, selectedTextEdit],
+  );
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      if (!selectedTextEdit || editingEditId !== selectedTextEdit.id) return;
+
+      const editableElement = document.querySelector(
+        `[data-editable-text-id='${selectedTextEdit.id}']`,
+      ) as HTMLElement | null;
+      if (!editableElement) return;
+
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
+
+      const range = selection.getRangeAt(0);
+      if (!editableElement.contains(range.commonAncestorContainer)) return;
+
+      selectionRangeRef.current = range.cloneRange();
+      setFontBold(document.queryCommandState("bold"));
+      setFontItalic(document.queryCommandState("italic"));
+      setFontUnderline(document.queryCommandState("underline"));
+    };
+
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => document.removeEventListener("selectionchange", handleSelectionChange);
+  }, [editingEditId, selectedTextEdit]);
+
   useEffect(() => {
     if (!selectedTextEdit) return;
     setFontSize(selectedTextEdit.fontSize);
@@ -241,32 +358,59 @@ export function PDFEditor({ storage }: PDFEditorProps) {
   const handleFontSizeChange = useCallback(
     (value: number) => {
       setFontSize(value);
+      if (applyInlineStyleToSelection({ fontSize: `${value}px` })) {
+        return;
+      }
       if (selectedTextEdit) {
         updateEdit(selectedTextEdit.id, { fontSize: value });
       }
     },
-    [selectedTextEdit, updateEdit],
+    [applyInlineStyleToSelection, selectedTextEdit, updateEdit],
   );
 
   const handleFontFamilyChange = useCallback(
     (value: string) => {
       setFontFamily(value);
+      if (applyInlineStyleToSelection({ fontFamily: value })) {
+        return;
+      }
       if (selectedTextEdit) {
         updateEdit(selectedTextEdit.id, { fontFamily: value });
       }
     },
-    [selectedTextEdit, updateEdit],
+    [applyInlineStyleToSelection, selectedTextEdit, updateEdit],
   );
 
   const handleFontColorChange = useCallback(
     (value: string) => {
       setFontColor(value);
+      if (applyInlineStyleToSelection({ color: value })) {
+        return;
+      }
       if (selectedTextEdit) {
         updateEdit(selectedTextEdit.id, { color: value });
       }
     },
-    [selectedTextEdit, updateEdit],
+    [applyInlineStyleToSelection, selectedTextEdit, updateEdit],
   );
+
+  const handleFontBoldChange = useCallback(() => {
+    const applied = applyCommandToSelection("bold");
+    if (!applied) return;
+    setFontBold(document.queryCommandState("bold"));
+  }, [applyCommandToSelection]);
+
+  const handleFontItalicChange = useCallback(() => {
+    const applied = applyCommandToSelection("italic");
+    if (!applied) return;
+    setFontItalic(document.queryCommandState("italic"));
+  }, [applyCommandToSelection]);
+
+  const handleFontUnderlineChange = useCallback(() => {
+    const applied = applyCommandToSelection("underline");
+    if (!applied) return;
+    setFontUnderline(document.queryCommandState("underline"));
+  }, [applyCommandToSelection]);
 
   const handleNavigatePage = useCallback(
     (page: number) => {
@@ -341,9 +485,15 @@ export function PDFEditor({ storage }: PDFEditorProps) {
         fontSize={fontSize}
         fontFamily={fontFamily}
         fontColor={fontColor}
+        fontBold={fontBold}
+        fontItalic={fontItalic}
+        fontUnderline={fontUnderline}
         onFontSizeChange={handleFontSizeChange}
         onFontFamilyChange={handleFontFamilyChange}
         onFontColorChange={handleFontColorChange}
+        onFontBoldChange={handleFontBoldChange}
+        onFontItalicChange={handleFontItalicChange}
+        onFontUnderlineChange={handleFontUnderlineChange}
       />
 
       <input

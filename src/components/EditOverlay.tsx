@@ -10,6 +10,25 @@ import {
 } from "@/lib/text-layout";
 import { Check, X } from "lucide-react";
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function plainTextToHtml(value: string) {
+  return escapeHtml(value).replaceAll("\n", "<br>");
+}
+
+function htmlToPlainText(html: string) {
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  return container.innerText.replace(/\r\n/g, "\n");
+}
+
 interface Props {
   edit: EditItem;
   onUpdate: (id: string, updates: EditUpdate) => void;
@@ -57,13 +76,15 @@ export function EditOverlay({
 
     return null;
   });
-  const [draftText, setDraftText] = useState(
-    edit.type === "text" || edit.type === "original-text" ? edit.content : "",
+  const [draftHtml, setDraftHtml] = useState(
+    edit.type === "text" || edit.type === "original-text"
+      ? (edit.richContent ?? plainTextToHtml(edit.content))
+      : "",
   );
   const dragStart = useRef({ x: 0, y: 0, origX: 0, origY: 0 });
   const resizeStart = useRef({ x: 0, y: 0, origW: 0, origH: 0 });
   const elRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isDragging) {
@@ -96,31 +117,36 @@ export function EditOverlay({
   useEffect(() => {
     if (edit.type !== "text" && edit.type !== "original-text") return;
     if (!isEditing) {
-      setDraftText(edit.content);
+      setDraftHtml(edit.richContent ?? plainTextToHtml(edit.content));
     }
   }, [edit, isEditing]);
 
   useEffect(() => {
-    if (!autoFocus || !textareaRef.current) return;
+    if (!autoFocus || !editableRef.current) return;
 
-    textareaRef.current.focus();
-    const length = textareaRef.current.value.length;
-    textareaRef.current.setSelectionRange(length, length);
+    editableRef.current.focus();
+    const selection = window.getSelection();
+    if (!selection) return;
+    const range = document.createRange();
+    range.selectNodeContents(editableRef.current);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
   }, [autoFocus]);
 
   useEffect(() => {
-    if (!isEditing || !textareaRef.current) return;
+    if (!isEditing || !editableRef.current) return;
 
-    textareaRef.current.style.height = "0px";
-    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-  }, [draftText, edit.fontSize, isEditing]);
+    editableRef.current.innerHTML = edit.richContent ?? plainTextToHtml(edit.content);
+  }, [edit.content, edit.id, edit.richContent, isEditing]);
 
   const commitTextChanges = useCallback(() => {
     if (edit.type !== "text" && edit.type !== "original-text") return;
-    const nextContent = draftText.trimEnd() || " ";
-    onUpdate(edit.id, { content: nextContent });
-    return nextContent;
-  }, [draftText, edit, onUpdate]);
+    const nextPlainContent = htmlToPlainText(draftHtml).trimEnd() || " ";
+    const nextRichContent = draftHtml || plainTextToHtml(nextPlainContent);
+    onUpdate(edit.id, { content: nextPlainContent, richContent: nextRichContent });
+    return nextPlainContent;
+  }, [draftHtml, edit, onUpdate]);
 
   useEffect(() => {
     if (!isEditing || !elRef.current) return;
@@ -128,6 +154,7 @@ export function EditOverlay({
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node | null;
       if (!target || elRef.current?.contains(target)) return;
+      if (target instanceof HTMLElement && target.closest("[data-text-toolbar='true']")) return;
 
       commitTextChanges();
       onFinishEditing(edit.id);
@@ -295,9 +322,11 @@ export function EditOverlay({
           </button>
         )}
         {isEditing ? (
-          <textarea
-            ref={textareaRef}
-            value={draftText}
+          <div
+            ref={editableRef}
+            contentEditable
+            suppressContentEditableWarning
+            data-editable-text-id={edit.id}
             className={`rounded px-1.5 py-0.5 ${isEditing ? "cursor-text outline-2 outline-primary ring-4 ring-primary/15" : ""} ${isOriginal ? "bg-card/95 shadow-[0_0_0_1px_rgba(15,23,42,0.08)]" : "bg-card/95 shadow-[0_0_0_1px_rgba(15,23,42,0.08)]"}`}
             style={{
               fontSize: edit.fontSize,
@@ -313,22 +342,28 @@ export function EditOverlay({
               paddingRight: TEXT_BOX_HORIZONTAL_PADDING,
               paddingTop: TEXT_BOX_VERTICAL_PADDING,
               paddingBottom: TEXT_BOX_VERTICAL_PADDING,
-              resize: "none",
-              overflow: "hidden",
+              overflow: "auto",
               whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
               background: "transparent",
               border: "none",
               outline: "none",
             }}
-            onChange={(e) => {
-              setDraftText(e.target.value);
+            onInput={(e) => {
+              setDraftHtml(e.currentTarget.innerHTML);
             }}
-            onBlur={() => {
+            onBlur={(e) => {
               commitTextChanges();
 
               // Keep edit mode active when interacting with drag/resize handles.
               if (isDragging || isResizing) {
                 return;
+              }
+
+              if (e.relatedTarget instanceof HTMLElement) {
+                if (e.relatedTarget.closest("[data-text-toolbar='true']")) {
+                  return;
+                }
               }
 
               onFinishEditing(edit.id);
@@ -362,9 +397,8 @@ export function EditOverlay({
               e.stopPropagation();
               onSelect(edit.id);
             }}
-          >
-            {edit.content}
-          </div>
+            dangerouslySetInnerHTML={{ __html: edit.richContent ?? plainTextToHtml(edit.content) }}
+          />
         )}
         {isSelectMode && (
           <div

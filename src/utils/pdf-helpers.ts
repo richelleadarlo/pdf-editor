@@ -29,11 +29,25 @@ function hexToRgb(hex: string) {
   return rgb(r, g, b);
 }
 
-const FONT_MAP: Record<string, string> = {
-  Helvetica: StandardFonts.Helvetica,
-  "Times New Roman": StandardFonts.TimesRoman,
-  Courier: StandardFonts.Courier,
+const FONT_MAP: Record<string, { regular: string; bold: string }> = {
+  Helvetica: {
+    regular: StandardFonts.Helvetica,
+    bold: StandardFonts.HelveticaBold,
+  },
+  "Times New Roman": {
+    regular: StandardFonts.TimesRoman,
+    bold: StandardFonts.TimesBold,
+  },
+  Courier: {
+    regular: StandardFonts.Courier,
+    bold: StandardFonts.CourierBold,
+  },
 };
+
+function getFontKey(fontFamily: string, bold?: boolean) {
+  const familyMap = FONT_MAP[fontFamily] ?? FONT_MAP.Helvetica;
+  return bold ? familyMap.bold : familyMap.regular;
+}
 
 function drawPdfMultilineText(options: {
   page: PDFPage;
@@ -45,21 +59,50 @@ function drawPdfMultilineText(options: {
   color: ReturnType<typeof rgb>;
   lineHeight: number;
   maxWidth?: number;
+  underline?: boolean;
+  indent?: number;
 }) {
-  const { page, content, x, topY, fontSize, font, color, lineHeight, maxWidth } = options;
+  const {
+    page,
+    content,
+    x,
+    topY,
+    fontSize,
+    font,
+    color,
+    lineHeight,
+    maxWidth,
+    underline,
+    indent,
+  } = options;
+  const firstLineIndent = Math.max(0, indent ?? 0);
   const lines = content.split("\n");
 
   lines.forEach((line, index) => {
     const baselineY = topY - fontSize - index * lineHeight;
+    const lineIndent = index === 0 ? firstLineIndent : 0;
+    const lineX = x + lineIndent;
+    const lineMaxWidth =
+      typeof maxWidth === "number" ? Math.max(0, maxWidth - lineIndent) : undefined;
     page.drawText(line, {
-      x,
+      x: lineX,
       y: baselineY,
       size: fontSize,
-      maxWidth,
+      maxWidth: lineMaxWidth,
       lineHeight,
       font,
       color,
     });
+
+    if (underline && line.length > 0) {
+      const textWidth = font.widthOfTextAtSize(line, fontSize);
+      page.drawLine({
+        start: { x: lineX, y: baselineY - 1 },
+        end: { x: lineX + textWidth, y: baselineY - 1 },
+        thickness: Math.max(0.75, fontSize * 0.06),
+        color,
+      });
+    }
   });
 }
 
@@ -96,7 +139,7 @@ export async function exportPdfWithEdits(
         borderWidth: 0,
       });
 
-      const fontKey = FONT_MAP[oe.fontFamily] || StandardFonts.Helvetica;
+      const fontKey = getFontKey(oe.fontFamily, oe.bold);
       const font = await pdfDoc.embedFont(fontKey);
       drawPdfMultilineText({
         page,
@@ -108,10 +151,12 @@ export async function exportPdfWithEdits(
         lineHeight: pdfFontSize * 1.2,
         font,
         color: hexToRgb(oe.color),
+        underline: oe.underline,
+        indent: oe.indent,
       });
     } else if (edit.type === "text") {
       const textEdit = edit as TextEdit;
-      const fontKey = FONT_MAP[textEdit.fontFamily] || StandardFonts.Helvetica;
+      const fontKey = getFontKey(textEdit.fontFamily, textEdit.bold);
       const font = await pdfDoc.embedFont(fontKey);
       const pdfX = textEdit.x / scale.scaleX;
       const pdfTopY = pageH - textEdit.y / scale.scaleY;
@@ -128,6 +173,8 @@ export async function exportPdfWithEdits(
         maxWidth,
         font,
         color: hexToRgb(textEdit.color),
+        underline: textEdit.underline,
+        indent: textEdit.indent,
       });
     } else if (edit.type === "signature") {
       const imgBytes = dataUrlToUint8Array(edit.image);
@@ -193,12 +240,13 @@ function drawCanvasText(options: {
   const exportHeight =
     "height" in edit ? (edit.height / currentScale.scaleY) * exportScale : undefined;
   const exportFontSize = (edit.fontSize / currentScale.scaleY) * exportScale;
+  const exportIndent = ((edit.indent ?? 0) / currentScale.scaleX) * exportScale;
   const lineHeight = exportFontSize * TEXT_BOX_LINE_HEIGHT;
   const paddingX = (TEXT_BOX_HORIZONTAL_PADDING / currentScale.scaleX) * exportScale;
   const paddingY = (TEXT_BOX_VERTICAL_PADDING / currentScale.scaleY) * exportScale;
 
   ctx.save();
-  ctx.font = `${exportFontSize}px ${edit.fontFamily}`;
+  ctx.font = `${edit.bold ? "700 " : ""}${exportFontSize}px ${edit.fontFamily}`;
   ctx.fillStyle = edit.color;
   ctx.textBaseline = "top";
 
@@ -210,7 +258,21 @@ function drawCanvasText(options: {
 
   const lines = wrapTextForCanvas(ctx, edit.content, exportWidth);
   lines.forEach((line, index) => {
-    ctx.fillText(line, exportX + paddingX, exportY + paddingY + index * lineHeight);
+    const lineIndent = index === 0 ? exportIndent : 0;
+    const lineX = exportX + paddingX + lineIndent;
+    const lineY = exportY + paddingY + index * lineHeight;
+    ctx.fillText(line, lineX, lineY);
+
+    if (edit.underline && line.length > 0) {
+      const measuredWidth = ctx.measureText(line).width;
+      const underlineY = lineY + exportFontSize + 1;
+      ctx.beginPath();
+      ctx.strokeStyle = edit.color;
+      ctx.lineWidth = Math.max(1, exportFontSize * 0.06);
+      ctx.moveTo(lineX, underlineY);
+      ctx.lineTo(lineX + measuredWidth, underlineY);
+      ctx.stroke();
+    }
   });
   ctx.restore();
 }
