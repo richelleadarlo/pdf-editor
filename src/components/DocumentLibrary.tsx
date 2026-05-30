@@ -115,7 +115,7 @@ async function generateThumbnail(documentId: string) {
   const context = canvas.getContext("2d");
   if (!context) return null;
 
-  await page.render({ canvasContext: context, viewport }).promise;
+  await page.render({ canvas, canvasContext: context, viewport }).promise;
 
   const thumbnail = canvas.toDataURL("image/png");
   thumbnailCache.set(documentId, thumbnail);
@@ -174,7 +174,11 @@ function DocumentThumbnail({ documentId, fileName }: { documentId: string; fileN
   return (
     <div className="flex h-full w-full flex-col items-center justify-center rounded-[1.25rem] bg-white px-5 py-6 text-slate-800 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.45)]">
       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-        {isLoading ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+        {isLoading ? (
+          <LoaderCircle className="h-5 w-5 animate-spin" />
+        ) : (
+          <FileText className="h-5 w-5" />
+        )}
       </div>
       <p className="mt-4 text-sm font-medium text-slate-700">
         {isLoading ? "Generating preview" : "Preview unavailable"}
@@ -258,7 +262,11 @@ export function DocumentLibrary({
   const commitRename = async (id: string) => {
     const original = documents.find((doc) => doc.id === id)?.pdfFileName ?? "";
     const trimmed = renameValue.trim();
-    const nextName = trimmed ? (trimmed.toLowerCase().endsWith(".pdf") ? trimmed : `${trimmed}.pdf`) : original;
+    const nextName = trimmed
+      ? trimmed.toLowerCase().endsWith(".pdf")
+        ? trimmed
+        : `${trimmed}.pdf`
+      : original;
     setRenamingId(null);
     if (nextName !== original) {
       await onRenameDocument(id, nextName);
@@ -283,7 +291,11 @@ export function DocumentLibrary({
       <header className="border-b border-border/60 bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <img src="/favicon.ico" alt="PDF Editor" className="h-11 w-11 object-contain sm:h-12 sm:w-12" />
+            <img
+              src="/favicon.ico"
+              alt="PDF Editor"
+              className="h-11 w-11 object-contain sm:h-12 sm:w-12"
+            />
             <div>
               <p className="text-lg font-semibold tracking-tight">PDF Editor</p>
               <p className="text-xs text-muted-foreground">Local-first PDF workspace</p>
@@ -369,7 +381,8 @@ export function DocumentLibrary({
                     Start in the library, jump into editing when a document matters.
                   </h1>
                   <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-                    Import multiple PDFs, keep them stored locally in your browser, and open any file into the existing page-aware editor when you need to make changes.
+                    Import multiple PDFs, keep them stored locally in your browser, and open any
+                    file into the existing page-aware editor when you need to make changes.
                   </p>
                 </div>
               </div>
@@ -377,19 +390,25 @@ export function DocumentLibrary({
               <div className="grid gap-3 sm:grid-cols-3">
                 <Card className="border-border/60 bg-background/80 shadow-none">
                   <CardContent className="p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Stored PDFs</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Stored PDFs
+                    </p>
                     <p className="mt-2 text-2xl font-semibold">{documents.length}</p>
                   </CardContent>
                 </Card>
                 <Card className="border-border/60 bg-background/80 shadow-none">
                   <CardContent className="p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Recent files</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Recent files
+                    </p>
                     <p className="mt-2 text-2xl font-semibold">{recentDocuments.length}</p>
                   </CardContent>
                 </Card>
                 <Card className="border-border/60 bg-background/80 shadow-none">
                   <CardContent className="p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Storage model</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Storage model
+                    </p>
                     <p className="mt-2 text-2xl font-semibold">Local</p>
                   </CardContent>
                 </Card>
@@ -403,7 +422,9 @@ export function DocumentLibrary({
                   type="button"
                   className={cn(
                     "group flex min-h-64 flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-border bg-background/90 px-6 py-8 text-center transition",
-                    dragActive ? "border-primary bg-primary/6" : "hover:border-primary/50 hover:shadow-lg",
+                    dragActive
+                      ? "border-primary bg-primary/6"
+                      : "hover:border-primary/50 hover:shadow-lg",
                   )}
                   onClick={() => inputRef.current?.click()}
                   onDragOver={(event) => {
@@ -423,7 +444,8 @@ export function DocumentLibrary({
                   </div>
                   <p className="mt-6 text-lg font-semibold">Blank import</p>
                   <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
-                    Drag and drop a batch of PDFs here, or browse your device and build a local document shelf.
+                    Drag and drop a batch of PDFs here, or browse your device and build a local
+                    document shelf.
                   </p>
                 </button>
 
@@ -435,7 +457,9 @@ export function DocumentLibrary({
                         Open any PDF card below to launch the existing editor.
                       </p>
                       <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                        Your files and edits stay in IndexedDB on this device. The editor still supports inline text changes, signatures, page navigation, undo, redo, and export.
+                        Your files and edits stay in IndexedDB on this device. The editor still
+                        supports inline text changes, signatures, page navigation, undo, redo, and
+                        export.
                       </p>
                     </div>
                     <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
@@ -487,7 +511,9 @@ export function DocumentLibrary({
                   <Clock3 className="h-8 w-8" />
                 </div>
                 <p className="mt-5 text-xl font-semibold">
-                  {documents.length === 0 ? "No PDFs in your workspace yet" : "No PDFs match that search"}
+                  {documents.length === 0
+                    ? "No PDFs in your workspace yet"
+                    : "No PDFs match that search"}
                 </p>
                 <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
                   {documents.length === 0
@@ -501,84 +527,94 @@ export function DocumentLibrary({
               {displayDocuments.map((document, index) => (
                 <ContextMenu key={document.id}>
                   <ContextMenuTrigger asChild>
-                  <div
-                    className="group"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => {
-                      if (renamingId === document.id) return;
-                      void onOpenDocument(document.id);
-                    }}
-                    onKeyDown={(event) => {
-                      if (renamingId === document.id) return;
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
+                    <div
+                      className="group"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        if (renamingId === document.id) return;
                         void onOpenDocument(document.id);
-                      }
-                    }}
-                  >
-                  <Card className="overflow-hidden rounded-[1.75rem] border-border/60 bg-background/90 shadow-[0_22px_50px_-38px_rgba(15,23,42,0.55)] transition duration-200 group-hover:-translate-y-1 group-hover:shadow-[0_30px_70px_-36px_rgba(15,23,42,0.48)]">
-                    <div className={cn("relative min-h-56 border-b border-border/60 bg-linear-to-br p-5", buildAccent(index))}>
-                      <button
-                        type="button"
-                        aria-label={`Delete ${document.pdfFileName}`}
-                        className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-background/85 text-muted-foreground transition hover:text-destructive"
-                        onClick={async (event) => {
-                          event.stopPropagation();
-                          await onDeleteDocument(document.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-
-                      <div className="mt-4 h-[17rem] overflow-hidden rounded-[1.25rem] bg-white shadow-[0_18px_45px_-30px_rgba(15,23,42,0.45)]">
-                        <DocumentThumbnail documentId={document.id} fileName={document.pdfFileName} />
-                      </div>
-                    </div>
-
-                    <CardContent className="space-y-3 p-5">
-                      <div>
-                        {renamingId === document.id ? (
-                          <input
-                            ref={renameInputRef}
-                            value={renameValue}
-                            onChange={(e) => setRenameValue(e.target.value)}
-                            onBlur={() => void commitRename(document.id)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                void commitRename(document.id);
-                              } else if (e.key === "Escape") {
-                                cancelRename();
-                              }
+                      }}
+                      onKeyDown={(event) => {
+                        if (renamingId === document.id) return;
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          void onOpenDocument(document.id);
+                        }
+                      }}
+                    >
+                      <Card className="overflow-hidden rounded-[1.75rem] border-border/60 bg-background/90 shadow-[0_22px_50px_-38px_rgba(15,23,42,0.55)] transition duration-200 group-hover:-translate-y-1 group-hover:shadow-[0_30px_70px_-36px_rgba(15,23,42,0.48)]">
+                        <div
+                          className={cn(
+                            "relative min-h-56 border-b border-border/60 bg-linear-to-br p-5",
+                            buildAccent(index),
+                          )}
+                        >
+                          <button
+                            type="button"
+                            aria-label={`Delete ${document.pdfFileName}`}
+                            className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-background/85 text-muted-foreground transition hover:text-destructive"
+                            onClick={async (event) => {
+                              event.stopPropagation();
+                              await onDeleteDocument(document.id);
                             }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-full rounded-md border border-primary/40 bg-background px-2 py-1 text-base font-semibold leading-6 text-foreground outline-none focus:ring-2 focus:ring-primary/30"
-                          />
-                        ) : (
-                          <div className="flex items-start gap-1.5">
-                            <p className="line-clamp-2 flex-1 text-base font-semibold leading-6 text-foreground">
-                              {document.pdfFileName}
-                            </p>
-                            <button
-                              type="button"
-                              aria-label={`Rename ${document.pdfFileName}`}
-                              className="mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition hover:text-foreground group-hover:opacity-100 focus:opacity-100"
-                              onClick={(e) => startRename(e, document)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+
+                          <div className="mt-4 h-[17rem] overflow-hidden rounded-[1.25rem] bg-white shadow-[0_18px_45px_-30px_rgba(15,23,42,0.45)]">
+                            <DocumentThumbnail
+                              documentId={document.id}
+                              fileName={document.pdfFileName}
+                            />
                           </div>
-                        )}
-                        <p className="mt-1 text-sm text-muted-foreground">Updated {formatUpdatedAt(document.updatedAt)}</p>
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{formatBytes(document.size)}</span>
-                        <span>Open editor</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  </div>
+                        </div>
+
+                        <CardContent className="space-y-3 p-5">
+                          <div>
+                            {renamingId === document.id ? (
+                              <input
+                                ref={renameInputRef}
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                onBlur={() => void commitRename(document.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    void commitRename(document.id);
+                                  } else if (e.key === "Escape") {
+                                    cancelRename();
+                                  }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-full rounded-md border border-primary/40 bg-background px-2 py-1 text-base font-semibold leading-6 text-foreground outline-none focus:ring-2 focus:ring-primary/30"
+                              />
+                            ) : (
+                              <div className="flex items-start gap-1.5">
+                                <p className="line-clamp-2 flex-1 text-base font-semibold leading-6 text-foreground">
+                                  {document.pdfFileName}
+                                </p>
+                                <button
+                                  type="button"
+                                  aria-label={`Rename ${document.pdfFileName}`}
+                                  className="mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition hover:text-foreground group-hover:opacity-100 focus:opacity-100"
+                                  onClick={(e) => startRename(e, document)}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            )}
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              Updated {formatUpdatedAt(document.updatedAt)}
+                            </p>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>{formatBytes(document.size)}</span>
+                            <span>Open editor</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </ContextMenuTrigger>
                   <ContextMenuContent className="w-52">
                     <ContextMenuItem
@@ -588,10 +624,7 @@ export function DocumentLibrary({
                       <FolderOpen className="h-4 w-4" />
                       Open in editor
                     </ContextMenuItem>
-                    <ContextMenuItem
-                      className="gap-2"
-                      onSelect={() => openInNewTab(document.id)}
-                    >
+                    <ContextMenuItem className="gap-2" onSelect={() => openInNewTab(document.id)}>
                       <ExternalLink className="h-4 w-4" />
                       Open in new tab
                     </ContextMenuItem>

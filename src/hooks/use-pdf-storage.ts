@@ -8,6 +8,8 @@ import {
   listStoredDocuments,
   renameStoredDocument,
   saveStoredDocument,
+  saveStoredEdits,
+  saveStoredPdf,
   setStoredActiveDocumentId,
   touchStoredDocument,
   updateStoredDocumentEdits,
@@ -236,7 +238,7 @@ export function usePdfStorage() {
             ? urlDocumentId
             : storedActiveDocumentId && storedDocuments.some((d) => d.id === storedActiveDocumentId)
               ? storedActiveDocumentId
-              : migratedDocumentId ?? null;
+              : (migratedDocumentId ?? null);
 
         if (nextActiveDocumentId) {
           await hydrateActiveDocument(nextActiveDocumentId, { touch: false });
@@ -516,7 +518,7 @@ export function usePdfStorage() {
   const canRedo = history.future.length > 0;
 
   const activeDocument = activeDocumentId
-    ? documents.find((document) => document.id === activeDocumentId) ?? null
+    ? (documents.find((document) => document.id === activeDocumentId) ?? null)
     : null;
 
   return {

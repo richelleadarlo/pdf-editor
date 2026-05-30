@@ -13,7 +13,6 @@ import {
   Trash2,
   CopyPlus,
 } from "lucide-react";
-import type { ThemeMode } from "@/hooks/use-theme";
 
 interface Props {
   documentName: string;
@@ -95,7 +94,9 @@ export function Toolbar({
       </Button>
 
       {hasPdf && documentName ? (
-        <div className="max-w-48 truncate px-1 text-sm font-medium text-foreground">{documentName}</div>
+        <div className="max-w-48 truncate px-1 text-sm font-medium text-foreground">
+          {documentName}
+        </div>
       ) : null}
 
       <div className="mx-1 hidden h-6 w-px bg-border md:block" />

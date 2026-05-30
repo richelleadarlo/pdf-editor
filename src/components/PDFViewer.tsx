@@ -73,6 +73,50 @@ export function PDFViewer({
   const [loading, setLoading] = useState(true);
   const scalesRef = useRef<Map<number, { scaleX: number; scaleY: number }>>(new Map());
 
+  const resolveDropPosition = useCallback(
+    ({
+      clientX,
+      clientY,
+      pointerOffsetX,
+      pointerOffsetY,
+      width,
+      height,
+    }: {
+      clientX: number;
+      clientY: number;
+      pointerOffsetX: number;
+      pointerOffsetY: number;
+      width: number;
+      height: number;
+    }) => {
+      for (const page of pageCanvases) {
+        const pageElement = pageRefs.current.get(page.pageNum);
+        if (!pageElement) continue;
+
+        const rect = pageElement.getBoundingClientRect();
+        const isWithinPage =
+          clientX >= rect.left &&
+          clientX <= rect.right &&
+          clientY >= rect.top &&
+          clientY <= rect.bottom;
+
+        if (!isWithinPage) continue;
+
+        const maxX = Math.max(0, page.width - width);
+        const maxY = Math.max(0, page.height - height);
+
+        return {
+          page: page.pageNum,
+          x: Math.min(Math.max(clientX - rect.left - pointerOffsetX, 0), maxX),
+          y: Math.min(Math.max(clientY - rect.top - pointerOffsetY, 0), maxY),
+        };
+      }
+
+      return null;
+    },
+    [pageCanvases],
+  );
+
   const renderPdf = useCallback(async () => {
     if (typeof window === "undefined") return;
     setLoading(true);
@@ -98,7 +142,7 @@ export function PDFViewer({
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const ctx = canvas.getContext("2d")!;
-        await page.render({ canvasContext: ctx, viewport }).promise;
+        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
 
         const originalViewport = page.getViewport({ scale: 1 });
         const scaleX = viewport.width / originalViewport.width;
@@ -276,6 +320,7 @@ export function PDFViewer({
                   key={edit.id}
                   edit={edit}
                   onUpdate={onUpdateEdit}
+                  onResolveDropPosition={resolveDropPosition}
                   onRemove={onRemoveEdit}
                   isSelectMode={activeTool === "select"}
                   isSelected={selectedEditId === edit.id}

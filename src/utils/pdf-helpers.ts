@@ -19,7 +19,7 @@ export function dataUrlToUint8Array(base64: string): Uint8Array {
 }
 
 export function uint8ArrayToBlob(bytes: Uint8Array, type = "application/pdf") {
-  return new Blob([bytes], { type });
+  return new Blob([bytes as Uint8Array<ArrayBuffer>], { type });
 }
 
 function hexToRgb(hex: string) {
@@ -36,7 +36,7 @@ const FONT_MAP: Record<string, { regular: string; bold: string }> = {
   },
   "Times New Roman": {
     regular: StandardFonts.TimesRoman,
-    bold: StandardFonts.TimesBold,
+    bold: StandardFonts.TimesRomanBold,
   },
   Courier: {
     regular: StandardFonts.Courier,
@@ -62,19 +62,8 @@ function drawPdfMultilineText(options: {
   underline?: boolean;
   indent?: number;
 }) {
-  const {
-    page,
-    content,
-    x,
-    topY,
-    fontSize,
-    font,
-    color,
-    lineHeight,
-    maxWidth,
-    underline,
-    indent,
-  } = options;
+  const { page, content, x, topY, fontSize, font, color, lineHeight, maxWidth, underline, indent } =
+    options;
   const firstLineIndent = Math.max(0, indent ?? 0);
   const lines = content.split("\n");
 
@@ -314,7 +303,7 @@ export async function exportPdfExactlyAsEdited(
       throw new Error("Failed to create export canvas context");
     }
 
-    await sourcePage.render({ canvasContext: ctx, viewport: exportViewport }).promise;
+    await sourcePage.render({ canvas, canvasContext: ctx, viewport: exportViewport }).promise;
 
     for (const edit of edits.filter((item) => item.page === pageNum)) {
       if (edit.type === "signature") {

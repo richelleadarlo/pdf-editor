@@ -40,6 +40,7 @@ export function PDFEditor({ storage }: PDFEditorProps) {
   const [fontItalic, setFontItalic] = useState(false);
   const [fontUnderline, setFontUnderline] = useState(false);
   const [signatureOpen, setSignatureOpen] = useState(false);
+  const [signaturePlacementPage, setSignaturePlacementPage] = useState(1);
   const [pageCount, setPageCount] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [navigateToPage, setNavigateToPage] = useState<number | null>(null);
@@ -85,6 +86,7 @@ export function PDFEditor({ storage }: PDFEditorProps) {
   };
 
   const handleSignatureSave = (dataUrl: string) => {
+    const targetPage = Math.min(Math.max(signaturePlacementPage, 1), pageCount);
     const edit: EditItem = {
       id: generateId(),
       type: "signature",
@@ -93,10 +95,12 @@ export function PDFEditor({ storage }: PDFEditorProps) {
       y: 100,
       width: 160,
       height: 80,
-      page: currentPage,
+      page: targetPage,
     };
     addEdit(edit);
     setSelectedEditId(edit.id);
+    setCurrentPage(targetPage);
+    setNavigateToPage(targetPage);
     setActiveTool("select");
     setSignatureOpen(false);
   };
@@ -145,6 +149,7 @@ export function PDFEditor({ storage }: PDFEditorProps) {
     if (!pdfBytes) {
       setPageCount(1);
       setCurrentPage(1);
+      setSignaturePlacementPage(1);
       setNavigateToPage(null);
       setSelectedEditId(null);
       setEditingEditId(null);
@@ -469,7 +474,10 @@ export function PDFEditor({ storage }: PDFEditorProps) {
         onToolChange={setActiveTool}
         onBackToLibrary={closeDocument}
         onUpload={() => fileInputRef.current?.click()}
-        onSignature={() => setSignatureOpen(true)}
+        onSignature={() => {
+          setSignaturePlacementPage(currentPage);
+          setSignatureOpen(true);
+        }}
         onDownload={handleDownload}
         onClear={handleClear}
         onUndo={undo}

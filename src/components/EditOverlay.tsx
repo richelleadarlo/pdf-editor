@@ -32,6 +32,14 @@ function htmlToPlainText(html: string) {
 interface Props {
   edit: EditItem;
   onUpdate: (id: string, updates: EditUpdate) => void;
+  onResolveDropPosition?: (drop: {
+    clientX: number;
+    clientY: number;
+    pointerOffsetX: number;
+    pointerOffsetY: number;
+    width: number;
+    height: number;
+  }) => EditUpdate | null;
   onRemove: (id: string) => void;
   isSelectMode: boolean;
   isSelected: boolean;
@@ -45,6 +53,7 @@ interface Props {
 export function EditOverlay({
   edit,
   onUpdate,
+  onResolveDropPosition,
   onRemove,
   isSelectMode,
   isSelected,
@@ -81,7 +90,14 @@ export function EditOverlay({
       ? (edit.richContent ?? plainTextToHtml(edit.content))
       : "",
   );
-  const dragStart = useRef({ x: 0, y: 0, origX: 0, origY: 0 });
+  const dragStart = useRef({
+    x: 0,
+    y: 0,
+    origX: 0,
+    origY: 0,
+    pointerOffsetX: 0,
+    pointerOffsetY: 0,
+  });
   const resizeStart = useRef({ x: 0, y: 0, origW: 0, origH: 0 });
   const elRef = useRef<HTMLDivElement>(null);
   const editableRef = useRef<HTMLDivElement>(null);
@@ -136,9 +152,10 @@ export function EditOverlay({
 
   useEffect(() => {
     if (!isEditing || !editableRef.current) return;
+    if (edit.type === "signature") return;
 
     editableRef.current.innerHTML = edit.richContent ?? plainTextToHtml(edit.content);
-  }, [edit.content, edit.id, edit.richContent, isEditing]);
+  }, [edit, isEditing]);
 
   const commitTextChanges = useCallback(() => {
     if (edit.type !== "text" && edit.type !== "original-text") return;
@@ -178,8 +195,16 @@ export function EditOverlay({
       e.stopPropagation();
       e.preventDefault();
       onSelect(edit.id);
+      const rect = e.currentTarget.getBoundingClientRect();
       setIsDragging(true);
-      dragStart.current = { x: e.clientX, y: e.clientY, origX: edit.x, origY: edit.y };
+      dragStart.current = {
+        x: e.clientX,
+        y: e.clientY,
+        origX: edit.x,
+        origY: edit.y,
+        pointerOffsetX: e.clientX - rect.left,
+        pointerOffsetY: e.clientY - rect.top,
+      };
     },
     [edit.id, edit.x, edit.y, isEditing, isSelectMode, onSelect],
   );
@@ -197,9 +222,21 @@ export function EditOverlay({
 
       setDraftPosition(nextPosition);
     };
-    const onUp = () => {
+    const onUp = (e: MouseEvent) => {
       setIsDragging(false);
-      onUpdate(edit.id, draftPosition);
+
+      const width = draftSize?.width ?? ("width" in edit ? (edit.width ?? 0) : 0);
+      const height = draftSize?.height ?? ("height" in edit ? (edit.height ?? 0) : 0);
+      const resolvedDrop = onResolveDropPosition?.({
+        clientX: e.clientX,
+        clientY: e.clientY,
+        pointerOffsetX: dragStart.current.pointerOffsetX,
+        pointerOffsetY: dragStart.current.pointerOffsetY,
+        width,
+        height,
+      });
+
+      onUpdate(edit.id, resolvedDrop ?? draftPosition);
     };
 
     window.addEventListener("mousemove", onMove);
@@ -208,7 +245,7 @@ export function EditOverlay({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [draftPosition, edit.id, isDragging, onUpdate]);
+  }, [draftPosition, draftSize, edit, isDragging, onResolveDropPosition, onUpdate]);
 
   const onResizeDown = (e: React.MouseEvent) => {
     e.stopPropagation();

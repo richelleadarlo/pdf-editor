@@ -184,8 +184,7 @@ async function deleteDocumentRecord(id: string) {
       database.close();
       resolve();
     };
-    transaction.onerror = () =>
-      reject(transaction.error ?? new Error("Failed to delete document"));
+    transaction.onerror = () => reject(transaction.error ?? new Error("Failed to delete document"));
     transaction.onabort = () => reject(transaction.error ?? new Error("Document delete aborted"));
   });
 }
@@ -237,7 +236,9 @@ export async function listStoredDocuments() {
 
   return records
     .map(toDocumentSummary)
-    .sort((left, right) => right.lastOpenedAt - left.lastOpenedAt || right.updatedAt - left.updatedAt);
+    .sort(
+      (left, right) => right.lastOpenedAt - left.lastOpenedAt || right.updatedAt - left.updatedAt,
+    );
 }
 
 export async function getStoredDocument(id: string): Promise<StoredPdfDocument | null> {
